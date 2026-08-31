@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: API segura para el portal de vacaciones.
+
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Default: '*'
+    Description: Origenes web permitidos, separados por coma. Cambia * por el dominio de Amplify al pasar a produccion.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 20
+    MemorySize: 256
+    Environment:
+      Variables:
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
+
+Resources:
+  PortalVacacionesApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: index.handler
+      Policies:
+        - Statement:
+            - Sid: DynamoPortalTables
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Scan
+              Resource:
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/NAVE_Vacaciones
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/NAVE_Reporte_Usuarios_Web
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/NAVE_Recuperar_Cuenta
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/NAVE_Reporte_Capacidades
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/NAVE_Reporte_General_MVPs
+            - Sid: InvokePortalFunctions
+              Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource:
+                - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:Send_Email
+                - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:Send_Team_MSG
+                - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:Obtener_Saldos_Beneficios
+      Events:
+        ProxyApi:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: URL base para NAVE_API_BASE_URL en Amplify.
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com

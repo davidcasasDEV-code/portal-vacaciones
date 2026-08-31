@@ -1,0 +1,14 @@
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - mkdir -p dist
+        - cp -R *.html css images js dist/
+        - printf 'window.NAVE_CONFIG = {\n    apiBaseUrl: "%s",\n    portalUrl: "%s"\n};\n' "$NAVE_API_BASE_URL" "$NAVE_PORTAL_URL" > dist/js/config.js
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths: []

@@ -1,0 +1,45 @@
+body {
+    background: url('/images/nave_login.png') no-repeat; /* Imagen de fondo */
+    background-size: contain;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to right, rgba(255, 105, 5, 0.8), rgba(255, 135, 5, 0.8), rgba(255, 165, 5, 0.8));
+}
+.login-form {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 650px;
+}
+.form-image {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.form-image img {
+    max-width: 100px;
+}
+.input-group-append {
+    cursor: pointer;
+}
+.text_titulo{
+    font-size: 25px;
+    text-align: center;
+    font-weight: bold;
+}
+.label_text{
+    font-size: 16px;
+    font-weight: bold;
+}

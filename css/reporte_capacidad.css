@@ -1,0 +1,77 @@
+body{
+    background-color: #001634;
+}
+
+.titulo{
+    color: white;
+}
+
+.palabras-body{
+    font-family: "Montserrat Regular";
+    font-size: 20px;
+    color: #FFFFFF;
+}
+
+.line-filtro {
+    margin-top: 30px;
+    height: 5px;
+    background-color: #00B2E3;
+    border-radius: 6px;
+}
+
+.palabras-filtro{
+    font-weight: bold;
+    font-family: "Montserrat Bold";
+    font-size: 22px;
+    color: #00B2E3;
+}
+
+.icono-filtro{
+    width: 40px;
+    height: 40px;
+}
+
+.boton-descargar{
+    margin-left: 40px;
+}
+
+.btn{
+    color: white;
+    font-weight: bold;
+}
+
+/*Theme the Tabulator element*/
+.tabulator{
+    background-color:#ffffff;
+    border: 1px solid #000000;
+    border-radius: 10px;
+    /* font-weight: bold; */
+}
+
+/*Theme the header*/
+.tabulator .tabulator-header {
+    background-color:#ffffff;
+    color:black;
+}
+
+/*Allow column header names to wrap lines*/
+.tabulator .tabulator-header .tabulator-col,
+.tabulator .tabulator-header .tabulator-col-row-handle {
+    white-space: normal;
+}
+
+/*Color the table rows*/
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row{
+    color:#000000;
+    background-color: #ffffff;
+    border: 1px solid #c4c4c4;
+}
+
+/*Color even rows*/
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row:nth-child(even) {
+    background-color: #ffffff;
+}
+
+.info-recurso{
+    color: rgb(0, 0, 0);
+}
