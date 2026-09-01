@@ -1,8 +1,7 @@
+.env*
+!.env.example
+.next/
 node_modules/
+out/
 dist/
-.amplify/
-.aws-sam/
-.env
-.env.*
-js/config.local.js
-*.log
+npm-debug.log*

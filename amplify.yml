@@ -1,14 +1,36 @@
 version: 1
 frontend:
   phases:
+    preBuild:
+      commands:
+        - nvm use 22 || true
+        - npm ci
     build:
       commands:
-        - mkdir -p dist
-        - cp -R *.html css images js dist/
-        - printf 'window.NAVE_CONFIG = {\n    apiBaseUrl: "%s",\n    portalUrl: "%s"\n};\n' "$NAVE_API_BASE_URL" "$NAVE_PORTAL_URL" > dist/js/config.js
+        - test -n "$AWS_REGION" || (echo "Missing AWS_REGION" && exit 1)
+        - rm -f .env.production
+        - |
+          node - <<'NODE'
+          const fs = require('fs');
+          const keys = [
+            'APP_BASE_URL',
+            'AWS_REGION',
+            'ALLOWED_TABLES',
+            'ALLOWED_LAMBDAS',
+            'AWS_ACCESS_KEY_ID',
+            'AWS_SECRET_ACCESS_KEY'
+          ];
+          const lines = keys
+            .filter((key) => process.env[key])
+            .map((key) => `${key}=${process.env[key]}`);
+          fs.writeFileSync('.env.production', `${lines.join('\n')}\n`);
+          NODE
+        - npm run build
   artifacts:
-    baseDirectory: dist
+    baseDirectory: .next
     files:
-      - '**/*'
+      - "**/*"
   cache:
-    paths: []
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*

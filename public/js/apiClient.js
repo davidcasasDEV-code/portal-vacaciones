@@ -46,7 +46,7 @@
     async function apiRequest(path, body) {
         const apiBaseUrl = resolveApiBaseUrl();
         if (!apiBaseUrl) {
-            throw new Error("NAVE_CONFIG.apiBaseUrl no esta configurado. Define el endpoint del API Gateway antes de publicar el portal.");
+            throw new Error("No se pudo resolver el backend del portal.");
         }
 
         const headers = {

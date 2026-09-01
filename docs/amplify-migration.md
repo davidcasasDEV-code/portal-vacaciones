@@ -1,40 +1,50 @@
-# Migracion a AWS Amplify
+# Portal de Vacaciones en Amplify
 
-## Objetivo
+Esta version usa Next.js, como la base de Go Pulsar. El portal HTML actual vive en `public/` y las llamadas a DynamoDB/Lambda pasan por rutas server-side de Next.js en `/api`.
 
-El portal deja de publicar credenciales de AWS en el navegador. Amplify solo hospeda el frontend estatico; DynamoDB y las Lambdas actuales se mantienen detras de una API HTTP.
+## Variables de entorno en Amplify
 
-## Pasos
+Configura estas variables en la app de Amplify:
 
-1. Revoca y rota de inmediato la access key que estuvo publicada en `js/credenciales.js`. Aunque el archivo ya quedo saneado localmente, esa llave debe considerarse comprometida.
-2. Despliega `backend/api-proxy` como Lambda + API Gateway en `us-east-1`.
-3. Configura Amplify Hosting conectado al repo `portal-vacaciones`, rama `main`, usando `amplify.yml`.
-4. En Amplify agrega estas variables de entorno:
-   - `NAVE_API_BASE_URL`: URL base del API Gateway, por ejemplo `https://abc123.execute-api.us-east-1.amazonaws.com`
-   - `NAVE_PORTAL_URL`: URL publica final del portal en Amplify. Si queda vacia, el portal usa `window.location.origin`.
-5. Cuando tengas el dominio final de Amplify, actualiza `AllowedOrigins` del API para permitir ese origen y quitar `*`.
-6. Valida login, registro, solicitud, aprobacion, cancelacion, reportes y mapa mensual.
-7. Cuando todo este validado, deshabilita el website hosting del bucket S3 y activa Block Public Access.
+- `APP_BASE_URL`: URL final del portal, por ejemplo `https://main.xxxxx.amplifyapp.com`
+- `AWS_REGION`: `us-east-1`
+- `ALLOWED_TABLES`: `NAVE_Vacaciones,NAVE_Reporte_Usuarios_Web,NAVE_Recuperar_Cuenta,NAVE_Reporte_Capacidades,NAVE_Reporte_General_MVPs`
+- `ALLOWED_LAMBDAS`: `Send_Email,Send_Team_MSG,Obtener_Saldos_Beneficios`
 
-## Despliegue del API con SAM
+Para salir rapido puedes agregar tambien `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` en Amplify, pero solo como variables server-side de esta app Next.js. En este proyecto ya no se escriben esas llaves en `public/js/config.js`.
+
+El camino recomendado es asignar a Amplify un rol IAM con permisos limitados a esas tablas y Lambdas, y quitar las access keys.
+
+## Permisos minimos
+
+El rol o usuario IAM debe permitir:
+
+- `dynamodb:GetItem`
+- `dynamodb:Scan`
+- `dynamodb:PutItem`
+- `dynamodb:UpdateItem`
+- `lambda:InvokeFunction`
+
+Limita los recursos a las tablas y funciones NAVE usadas por el portal.
+
+## Build
+
+Amplify debe usar el `amplify.yml` incluido:
 
 ```bash
-cd backend/api-proxy
-npm install
-sam build
-sam deploy --guided --region us-east-1
+npm ci
+npm run build
 ```
 
-El output `ApiUrl` es el valor que va en `NAVE_API_BASE_URL`.
+El resultado se publica desde `.next`.
 
-## Contrato del API
+## Validaciones
 
-El frontend llama estos endpoints:
+Antes de apagar el S3 publico valida:
 
-- `POST /dynamodb/get`
-- `POST /dynamodb/scan`
-- `POST /dynamodb/update`
-- `POST /dynamodb/put`
-- `POST /lambda/invoke`
-
-El cuerpo mantiene el mismo formato que usaba el SDK de AWS en el navegador. La Lambda proxy valida allowlists de tablas y funciones antes de ejecutar la operacion con su rol IAM.
+- Login y recuperacion de cuenta
+- Registro de usuario
+- Solicitud de vacaciones y beneficios
+- Aprobacion/rechazo de solicitudes
+- Reportes de vacaciones, capacidades y MVP
+- Navegacion del calendario, incluyendo octubre 2026 y febrero 2027
