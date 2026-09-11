@@ -18,13 +18,45 @@ Configura estas variables en la app de Amplify (Hosting > Environment variables)
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
   Rotarla invalida todas las sesiones activas (fuerza a todos a iniciar sesion
   de nuevo), asi que no se debe cambiar sin avisar.
+- `NAVE_AWS_ACCESS_KEY_ID` / `NAVE_AWS_SECRET_ACCESS_KEY`: ver nota abajo.
 
-No configures `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` en Amplify: el
-compute de Amplify Hosting para apps Next.js SSR ya corre con un rol de
-servicio. Asigna a ese rol los permisos minimos de abajo en vez de usar access
-keys de larga duracion.
+### Sobre las credenciales de AWS (DynamoDB/Lambda)
 
-## Permisos IAM minimos del rol de servicio de Amplify
+Lo ideal era que el compute SSR de Amplify Hosting usara el "Service role" de
+la app (`aws amplify update-app --iam-service-role-arn ...`) sin necesidad de
+ninguna access key. En la practica, para esta app ese rol no se ve reflejado
+en el runtime (el SDK responde `Could not load credentials from any
+providers` aunque el rol este configurado) — Amplify Hosting Gen 1 no
+garantiza esto de forma consistente para todas las apps.
+
+Como alternativa que si funciona: se crea un **usuario IAM dedicado**, sin
+consola ni password, solo con una access key y una politica que **unicamente**
+permite las acciones de abajo sobre las tablas/funciones NAVE (nunca un
+usuario admin). Esa llave se configura como variables de entorno de Amplify
+(`NAVE_AWS_ACCESS_KEY_ID` / `NAVE_AWS_SECRET_ACCESS_KEY` — nombre propio, no
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, que son nombres reservados de
+Lambda). Esas variables solo existen del lado servidor: nunca se mandan al
+navegador ni se guardan en el repo (`lib/aws-credentials.js` las lee via
+`process.env`).
+
+```bash
+# Usuario dedicado, sin acceso a consola
+aws iam create-user --user-name portal-vacaciones-app
+
+# Politica con el minimo necesario (ver bloque de permisos abajo)
+aws iam put-user-policy --user-name portal-vacaciones-app \
+  --policy-name portal-vacaciones-dynamo-lambda \
+  --policy-document file://permissions-policy.json
+
+# Genera el access key (guarda el resultado, el secret solo se muestra una vez)
+aws iam create-access-key --user-name portal-vacaciones-app
+```
+
+Si mas adelante se resuelve por que el service role no llega al compute SSR
+(puede requerir un caso de soporte con AWS), se puede volver a esa opcion y
+borrar este usuario/access key.
+
+## Permisos IAM minimos (rol de servicio o usuario dedicado)
 
 - `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:UpdateItem`, `dynamodb:Scan`
   sobre `NAVE_Vacaciones`, `NAVE_Reporte_Usuarios_Web`, `NAVE_Recuperar_Cuenta`
