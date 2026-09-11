@@ -9,7 +9,7 @@ frontend:
       commands:
         - test -n "$AWS_REGION" || (echo "Falta la variable AWS_REGION" && exit 1)
         - test -n "$SESSION_TOKEN_SECRET" || (echo "Falta la variable SESSION_TOKEN_SECRET" && exit 1)
-        - node -e "process.exit(process.env.SESSION_TOKEN_SECRET.length >= 32 ? 0 : 1)" || (echo "SESSION_TOKEN_SECRET debe tener al menos 32 caracteres" && exit 1)
+        - node -e "if (process.env.SESSION_TOKEN_SECRET.length < 32) process.exit(1)" || (echo "SESSION_TOKEN_SECRET debe tener al menos 32 caracteres" && exit 1)
         - npm run build
   artifacts:
     baseDirectory: .next
