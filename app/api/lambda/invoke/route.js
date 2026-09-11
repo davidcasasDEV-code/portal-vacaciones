@@ -1,5 +1,6 @@
 import { InvokeCommand } from "@aws-sdk/client-lambda";
 import { allowedFunctions, apiError, ensureAllowed, lambda } from "../../../../lib/aws-clients.js";
+import { requireAuth } from "../../../../lib/permissions.js";
 
 export const runtime = "nodejs";
 
@@ -15,8 +16,12 @@ function encodePayload(payload) {
   return Buffer.from(JSON.stringify(payload));
 }
 
+// Sin funciones permitidas por defecto (ver lib/aws-clients.js): las
+// funciones del modulo de Vacaciones ahora se invocan desde
+// lib/lambda.js, nunca desde el navegador.
 export async function POST(request) {
   try {
+    await requireAuth(request);
     const params = await request.json();
     ensureAllowed(params.FunctionName, allowedFunctions, "Lambda");
 

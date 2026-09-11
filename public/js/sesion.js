@@ -13,5 +13,7 @@ async function cerrar_sesion(){
     localStorage.removeItem('correo');
     localStorage.removeItem('permisos');
 
-    return window.location.href = "login.html";
+    await fetch("/api/auth/logout", { method: "POST" });
+
+    return window.location.href = "/login";
 }

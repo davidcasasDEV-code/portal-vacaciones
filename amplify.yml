@@ -7,24 +7,9 @@ frontend:
         - npm ci
     build:
       commands:
-        - test -n "$AWS_REGION" || (echo "Missing AWS_REGION" && exit 1)
-        - rm -f .env.production
-        - |
-          node - <<'NODE'
-          const fs = require('fs');
-          const keys = [
-            'APP_BASE_URL',
-            'AWS_REGION',
-            'ALLOWED_TABLES',
-            'ALLOWED_LAMBDAS',
-            'AWS_ACCESS_KEY_ID',
-            'AWS_SECRET_ACCESS_KEY'
-          ];
-          const lines = keys
-            .filter((key) => process.env[key])
-            .map((key) => `${key}=${process.env[key]}`);
-          fs.writeFileSync('.env.production', `${lines.join('\n')}\n`);
-          NODE
+        - test -n "$AWS_REGION" || (echo "Falta la variable AWS_REGION" && exit 1)
+        - test -n "$SESSION_TOKEN_SECRET" || (echo "Falta la variable SESSION_TOKEN_SECRET" && exit 1)
+        - node -e "process.exit(process.env.SESSION_TOKEN_SECRET.length >= 32 ? 0 : 1)" || (echo "SESSION_TOKEN_SECRET debe tener al menos 32 caracteres" && exit 1)
         - npm run build
   artifacts:
     baseDirectory: .next

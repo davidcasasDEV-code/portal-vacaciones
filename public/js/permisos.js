@@ -1,33 +1,21 @@
+// El portal de vacaciones se migro a /vacaciones (Next.js), con su propia
+// autorizacion server-side. Aqui solo se decide que enlaces mostrar; el rol
+// ya viene resuelto por el servidor (window.naveEnsureSession, en
+// legacy-session.js) y no se vuelve a consultar DynamoDB desde el navegador.
 async function obtener_permisos() {
-    const params = {
-        TableName: "NAVE_Reporte_Usuarios_Web",
-        Key: {
-            "correo": localStorage.getItem('correo')
-        }
-    };
+    const permisos = localStorage.getItem('permisos');
 
-    const data = await docClient.get(params).promise();
-
-    if (data.Item.permisos === "Admin"){
+    if (permisos === "Admin"){
         let insert_select = `
-            <li><a class="dropdown-item" href="aprobacion_vacaciones.html">Aprobación de Vacaciones</a></li>
-            <li><a class="dropdown-item" href="reporte_vacaciones.html">Reporte de Vacaciones</a></li>
-        `;
-        await $("#lista_vacaciones").append(insert_select);
-    }
-    else if (data.Item.permisos === "Usuario"){
-        let insert_select = `
-            <li><a class="dropdown-item" href="vacaciones.html">Registrar Vacaciones</a></li>
-            <li><a class="dropdown-item" href="solicitudes_vacaciones.html">Mis Solicitudes de Vacaciones</a></li>
+            <li><a class="dropdown-item" href="/aprobaciones">Aprobación de Vacaciones</a></li>
+            <li><a class="dropdown-item" href="/reportes">Reporte de Vacaciones</a></li>
         `;
         await $("#lista_vacaciones").append(insert_select);
     }
     else {
         let insert_select = `
-            <li><a class="dropdown-item" href="vacaciones.html">Registrar Vacaciones</a></li>
-            <li><a class="dropdown-item" href="solicitudes_vacaciones.html">Mis Solicitudes de Vacaciones</a></li>
-            <li><a class="dropdown-item" href="aprobacion_vacaciones.html">Aprobación de Vacaciones</a></li>
-            <li><a class="dropdown-item" href="reporte_vacaciones.html">Reporte de Vacaciones</a></li>
+            <li><a class="dropdown-item" href="/vacaciones">Registrar Vacaciones</a></li>
+            <li><a class="dropdown-item" href="/mis-solicitudes">Mis Solicitudes de Vacaciones</a></li>
         `;
         await $("#lista_vacaciones").append(insert_select);
     }

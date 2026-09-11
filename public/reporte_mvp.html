@@ -22,7 +22,7 @@
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link active" aria-current="page" href="index.html">Inicio</a>
+                            <a class="nav-link active" aria-current="page" href="/">Inicio</a>
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link active dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -137,6 +137,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
         <!-- API backend -->
         <script src="js/config.js"></script>
+        <script src="js/legacy-session.js"></script>
         <script src="js/apiClient.js"></script>   
         <script src="js/permisos.js"></script>
         <script src="js/reporte_mvp.js"></script>
@@ -144,8 +145,9 @@
 
         <script>
             window.onload = async function() {
-                if (!localStorage.getItem('correo') || !localStorage.getItem('nombre') || !localStorage.getItem('permisos')){
-                    return window.location.href = "login.html";
+                const sesionValida = await window.naveEnsureSession();
+                if (!sesionValida){
+                    return;
                 }
 
                 await obtener_permisos();
