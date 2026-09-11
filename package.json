@@ -15,11 +15,17 @@
     "@aws-sdk/client-dynamodb": "^3.1038.0",
     "@aws-sdk/client-lambda": "^3.1038.0",
     "@aws-sdk/lib-dynamodb": "^3.1038.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.6",
     "next": "^15.5.21",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^3.24.1"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "tailwindcss": "^4.0.0"
+  },
   "overrides": {
     "postcss": "^8.5.23"
   }
