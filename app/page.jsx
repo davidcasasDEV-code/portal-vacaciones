@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { getContext } from "../lib/context.js";
 
-export default function HomePage() {
-  redirect("/login.html");
+export default async function HomePage() {
+  const context = await getContext();
+  redirect(context ? "/dashboard" : "/login");
 }
