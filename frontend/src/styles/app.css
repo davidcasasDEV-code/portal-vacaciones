@@ -1962,6 +1962,20 @@ table.data th.num {
 .stat-row b {
   color: var(--text);
 }
+.ring-legend {
+  gap: 4px 12px;
+}
+.ring-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ring-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
 
 .menu {
   position: absolute;

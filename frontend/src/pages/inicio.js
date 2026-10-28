@@ -61,14 +61,28 @@ export default async function inicio(el) {
 
   const ringCard = (s, label, ic) => {
     if (!s) return '';
+    // Anillo segmentado: usados (tono suave), por disfrutar (tono medio) y disponibles (color pleno),
+    // así la gráfica tiene color aunque el saldo disponible sea 0.
     const total = s.otorgado + s.adicional;
-    const pct = total ? Math.max(0, Math.min(100, (s.disponible / total) * 100)) : 0;
+    const porDisfrutar = s.agendado + s.pendiente;
+    const base = Math.max(total, s.usado + porDisfrutar, 1);
+    const pU = (s.usado / base) * 100;
+    const pA = pU + (porDisfrutar / base) * 100;
+    const pD = pA + (Math.max(0, s.disponible) / base) * 100;
+    const cU = `color-mix(in srgb, ${s.color} 55%, var(--surface-3))`;
+    const cA = `color-mix(in srgb, ${s.color} 80%, var(--surface-3))`;
+    const gradient = `conic-gradient(${cU} 0 ${pU}%, ${cA} ${pU}% ${pA}%, ${s.color} ${pA}% ${pD}%, var(--surface-3) ${pD}% 100%)`;
     return html`<div class="card balance-card">
-      <div class="ring" style="--p:${pct};--c:${s.color}"><span>${num(s.disponible)}</span></div>
+      <div class="ring" style="background:${gradient}" role="img" aria-label="${label}: ${num(s.usado)} usados, ${num(porDisfrutar)} por disfrutar, ${num(s.disponible)} disponibles de ${num(total)}"><span>${num(s.disponible)}</span></div>
       <div class="meta">
         <div class="kpi-label small muted" style="font-weight:700">${icon(ic)} ${label}</div>
         <div><b style="font-size:1.05rem">${plural(s.disponible, 'día disponible', 'días disponibles')}</b></div>
-        <div class="stat-row"><span>Otorgados <b>${num(total)}</b></span><span>Usados <b>${num(s.usado)}</b></span>${s.agendado + s.pendiente ? html`<span>Por disfrutar <b>${num(s.agendado + s.pendiente)}</b></span>` : ''}</div>
+        <div class="stat-row ring-legend">
+          <span>Otorgados <b>${num(total)}</b></span>
+          <span><i style="background:${cU}"></i>Usados <b>${num(s.usado)}</b></span>
+          ${porDisfrutar ? html`<span><i style="background:${cA}"></i>Por disfrutar <b>${num(porDisfrutar)}</b></span>` : ''}
+          <span><i style="background:${s.color}"></i>Disponibles <b>${num(s.disponible)}</b></span>
+        </div>
       </div>
     </div>`;
   };
