@@ -25,14 +25,15 @@ function miniCal(d, cat) {
         const label = [fmtDate(f, { weekday: true }), fest?.nombre, mine ? `${cat.beneficiosMap[mine.tipo]?.nombre} (${mine.estatus})` : '', team ? `${team} fuera del equipo` : ''].filter(Boolean).join(' · ');
         return html`<div class="d ${isWeekend(f) ? 'weekend' : ''} ${fest ? 'holiday' : ''} ${f === d.hoy ? 'today' : ''} ${mine ? 'mine' : ''}"
           style="${color ? `background:${color};color:${inkFor(color)};${mine.estatus === 'Pendiente' ? 'opacity:.75' : ''}` : ''}" title="${label}" aria-label="${label}">
-          ${Number(f.slice(8))}${team && !mine ? html`<span class="t"></span>` : ''}
+          <span class="n">${Number(f.slice(8))}${team && !isWeekend(f) ? html`<span class="t" aria-hidden="true">${team}</span>` : ''}</span>
         </div>`;
       })}
     </div>
-    <div class="legend" style="margin-top:12px">
-      <span><span class="dot" style="background:var(--holiday-ink)"></span>Festivo</span>
-      <span><span class="dot" style="background:var(--accent)"></span>Alguien del equipo fuera</span>
-      <span><span class="dot" style="background:${cat.beneficiosMap.vacaciones?.color}"></span>Tus días</span>
+    <div class="legend mini-legend" style="margin-top:12px">
+      <span><span aria-hidden="true" class="sw" style="background:${cat.beneficiosMap.vacaciones?.color};color:#fff">5</span>Tus días</span>
+      <span><span class="sw holiday">5</span>Festivo</span>
+      <span><span class="sw today">5</span>Hoy</span>
+      <span><span aria-hidden="true" class="sw"><span class="n">5<span class="t">2</span></span></span>Personas del equipo fuera</span>
     </div>`;
 }
 

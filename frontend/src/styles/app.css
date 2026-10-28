@@ -35,6 +35,8 @@
   --holiday: #fff4e0;
   --holiday-ink: #9a5b00;
   --weekend: #f3f5f8;
+  --team-badge: #6b7280;
+  --team-badge-ink: #ffffff;
 
   --radius: 14px;
   --radius-sm: 10px;
@@ -70,6 +72,8 @@
     --holiday: #3a2a12;
     --holiday-ink: #f4c57a;
     --weekend: #0d1828;
+  --team-badge: #a7a9ac;
+  --team-badge-ink: #0a1422;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
     color-scheme: dark;
   }
@@ -98,6 +102,8 @@
   --holiday: #3a2a12;
   --holiday-ink: #f4c57a;
   --weekend: #0d1828;
+  --team-badge: #a7a9ac;
+  --team-badge-ink: #0a1422;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
   color-scheme: dark;
 }
@@ -1376,13 +1382,54 @@ table.data th.num {
 .mini-cal .d.mine {
   color: #fff;
 }
-.mini-cal .d .t {
+/* Contador de personas del equipo fuera: gris neutro para no confundirse con "tus días" */
+.mini-cal .d .n,
+.mini-legend .sw .n {
+  position: relative;
+  line-height: 1;
+}
+.mini-cal .d .t,
+.mini-legend .sw .t {
   position: absolute;
-  bottom: 3px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
+  top: -11px;
+  left: calc(100% + 1px);
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--team-badge);
+  color: var(--team-badge-ink);
+  border: 2px solid var(--surface);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 11px;
+  text-align: center;
+}
+.mini-cal .d.mine .t {
+  border-color: transparent;
+}
+.mini-legend {
+  gap: 10px 18px;
+}
+.mini-legend .sw {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: var(--surface-3);
+  color: var(--text);
+}
+.mini-legend .sw.holiday {
+  background: var(--holiday);
+  color: var(--holiday-ink);
+}
+.mini-legend .sw.today {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
 /* ---------- Mapa del equipo ---------- */
