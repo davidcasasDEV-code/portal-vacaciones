@@ -30,10 +30,10 @@ function miniCal(d, cat) {
       })}
     </div>
     <div class="legend mini-legend" style="margin-top:12px">
-      <span><span aria-hidden="true" class="sw" style="background:${cat.beneficiosMap.vacaciones?.color};color:#fff">5</span>Tus días</span>
-      <span><span class="sw holiday">5</span>Festivo</span>
-      <span><span class="sw today">5</span>Hoy</span>
-      <span><span aria-hidden="true" class="sw"><span class="n">5<span class="t">2</span></span></span>Personas del equipo fuera</span>
+      <span><span aria-hidden="true" class="sw" style="background:${cat.beneficiosMap.vacaciones?.color}"></span>Tus días</span>
+      <span><span aria-hidden="true" class="sw holiday"></span>Festivo</span>
+      <span><span aria-hidden="true" class="sw today"></span>Hoy</span>
+      <span><span aria-hidden="true" class="sw team"><span class="t">2</span></span>Personas del equipo fuera</span>
     </div>`;
 }
 
