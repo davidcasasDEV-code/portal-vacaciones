@@ -1,0 +1,14 @@
+{
+  "name": "go-productivity-vacaciones-api",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API del Portal de Vacaciones Go Productivity (AWS Lambda, Node.js 22). Sin dependencias externas: usa el AWS SDK v3 incluido en el runtime.",
+  "main": "src/index.mjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}

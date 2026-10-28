@@ -1,7 +1,12 @@
-.env*
-!.env.example
-.next/
 node_modules/
-out/
 dist/
-npm-debug.log*
+.build/
+.next/
+*.zip
+.env
+.env.*
+!.env.example
+frontend/.env.production.local
+infra/.state.json
+infra/.migration-report*.json
+.DS_Store

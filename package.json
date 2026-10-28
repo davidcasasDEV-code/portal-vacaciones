@@ -1,32 +1,30 @@
 {
-  "name": "portal-vacaciones-next",
-  "version": "0.1.0",
+  "name": "portal-vacaciones",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
+  "description": "Portal de Vacaciones Go Productivity: frontend estático (S3 + CloudFront) y API en AWS Lambda.",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1038.0",
-    "@aws-sdk/client-lambda": "^3.1038.0",
-    "@aws-sdk/lib-dynamodb": "^3.1038.0",
-    "bcryptjs": "^2.4.3",
-    "jose": "^5.9.6",
-    "next": "^15.5.21",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "zod": "^3.24.1"
+    "test": "node --test \"backend/test/*.test.mjs\"",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "infra:tablas": "node infra/create-tables.mjs",
+    "infra:config": "node infra/seed-config.mjs",
+    "infra:migrar": "node infra/migrate-legacy.mjs",
+    "deploy:api": "node infra/deploy-api.mjs",
+    "deploy:web": "node infra/deploy-web.mjs",
+    "deploy": "npm run deploy:api && npm run deploy:web"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.0.0",
-    "tailwindcss": "^4.0.0"
-  },
-  "overrides": {
-    "postcss": "^8.5.23"
+    "@aws-sdk/client-cloudfront": "^3.700.0",
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/client-iam": "^3.700.0",
+    "@aws-sdk/client-lambda": "^3.700.0",
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/client-sesv2": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0"
   }
 }
