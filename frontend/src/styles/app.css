@@ -205,10 +205,12 @@ textarea {
 }
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .stack-sm {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 .grow {
@@ -901,6 +903,26 @@ textarea.input {
 }
 .list-item > * {
   min-width: 0;
+}
+.kv {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.86rem;
+}
+.kv:last-child {
+  border-bottom: 0;
+}
+.kv > :first-child {
+  color: var(--muted);
+}
+.kv > :last-child {
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 .list-item .tag {
   max-width: 100%;

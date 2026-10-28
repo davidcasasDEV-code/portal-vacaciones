@@ -40,12 +40,12 @@ export default async function perfil(el, { query, navigate }) {
         </section>
         <div class="stack">
           <section class="card stack-sm">
-            <div class="row"><span class="avatar" style="width:52px;height:52px;font-size:1.1rem">${initials(u.nombre_completo)}</span><div><b>${u.nombre_completo}</b><div class="small muted">${u.correo}</div></div></div>
-            <div class="list">
-              <div class="list-item"><span class="grow small muted">Rol</span><span class="tag">${u.rol}</span></div>
-              <div class="list-item"><span class="grow small muted">Torre de servicio</span><b class="small">${u.torre || 'Sin asignar'}</b></div>
-              <div class="list-item"><span class="grow small muted">Aprueba mis solicitudes</span><b class="small" style="text-align:right">${(session.aprobadores || []).map((a) => a.nombre).join(', ') || '—'}</b></div>
-              <div class="list-item"><span class="grow small muted">Ingreso</span><b class="small">${fmtDate(u.fecha_ingreso)}</b></div>
+            <div class="row" style="flex-wrap:nowrap"><span class="avatar" style="width:52px;height:52px;font-size:1.1rem">${initials(u.nombre_completo)}</span><div style="min-width:0"><b>${u.nombre_completo}</b><div class="small muted" style="overflow-wrap:anywhere">${u.correo}</div></div></div>
+            <div>
+              <div class="kv"><span>Rol</span><span><span class="tag">${u.rol}</span></span></div>
+              <div class="kv"><span>Torre de servicio</span><span>${u.torre || 'Sin asignar'}</span></div>
+              <div class="kv"><span>Aprueba mis solicitudes</span><span>${(session.aprobadores || []).map((a) => html`<div>${a.nombre}</div>`)}${session.aprobadores?.length ? '' : '—'}</span></div>
+              <div class="kv"><span>Ingreso</span><span>${fmtDate(u.fecha_ingreso)}</span></div>
             </div>
             <p class="xs muted">La torre y el rol los asigna un administrador.</p>
           </section>
