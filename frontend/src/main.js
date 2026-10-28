@@ -1,7 +1,7 @@
 import './styles/app.css';
 import { session } from './state.js';
 import { get } from './api.js';
-import { html, mount, toast } from './ui/dom.js';
+import { html, mount, toast, topScrollbar } from './ui/dom.js';
 import { renderShell, setActiveNav, setTitle, refreshBadges } from './layout.js';
 
 // Rutas: el módulo de cada página se carga bajo demanda.
@@ -117,6 +117,9 @@ async function render() {
 export function resetBoot() {
   booted = false;
 }
+
+// Toda tabla con desplazamiento horizontal recibe también una barra arriba.
+new MutationObserver(() => app.querySelectorAll('.table-wrap, .map-wrap').forEach(topScrollbar)).observe(app, { childList: true, subtree: true });
 
 window.addEventListener('hashchange', render);
 render();

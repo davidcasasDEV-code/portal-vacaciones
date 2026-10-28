@@ -1082,6 +1082,16 @@ textarea.input {
 .table-wrap {
   overflow-x: auto;
 }
+.scroll-top {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.scroll-top > div {
+  height: 1px;
+}
 table.data {
   width: 100%;
   border-collapse: collapse;

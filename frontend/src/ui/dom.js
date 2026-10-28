@@ -136,4 +136,31 @@ export function initials(name) {
     .toUpperCase();
 }
 
-export const emptyState = (text, ic = 'inbox') => html`<div class="empty">${icon(ic)}<div>${text}</div></div>`;
+// Agrega una barra de desplazamiento horizontal arriba de un contenedor con scroll,
+// sincronizada con la de abajo. Solo se muestra cuando el contenido no cabe.
+export function topScrollbar(wrap) {
+  if (!wrap || wrap.previousElementSibling?.classList.contains('scroll-top')) return;
+  const bar = document.createElement('div');
+  bar.className = 'scroll-top';
+  bar.setAttribute('aria-hidden', 'true');
+  const inner = document.createElement('div');
+  bar.appendChild(inner);
+  wrap.before(bar);
+  const sync = () => {
+    inner.style.width = `${wrap.scrollWidth}px`;
+    bar.classList.toggle('hidden', wrap.scrollWidth <= wrap.clientWidth + 1);
+    bar.scrollLeft = wrap.scrollLeft;
+  };
+  // Solo se asigna si difiere, así el evento reflejado no genera un ciclo.
+  const link = (from, to) =>
+    from.addEventListener('scroll', () => {
+      if (Math.abs(to.scrollLeft - from.scrollLeft) > 1) to.scrollLeft = from.scrollLeft;
+    });
+  link(bar, wrap);
+  link(wrap, bar);
+  new ResizeObserver(sync).observe(wrap);
+  if (wrap.firstElementChild) new ResizeObserver(sync).observe(wrap.firstElementChild);
+  sync();
+}
+
+export const emptyState =(text, ic = 'inbox') => html`<div class="empty">${icon(ic)}<div>${text}</div></div>`;
