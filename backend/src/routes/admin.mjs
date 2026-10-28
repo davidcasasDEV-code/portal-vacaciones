@@ -5,7 +5,7 @@ import { badRequest, conflict, notFound, forbidden, str, email, isEmail, isISODa
 import { ROLES, hashPassword, generateTempPassword } from '../lib/auth.mjs';
 import { todayISO } from '../lib/dates.mjs';
 import { computeBalance, ACTIVE_STATUSES } from '../lib/balance.mjs';
-import { publicUser, indexBy, scopeEmails, fullName, resolveApprovers } from '../lib/repo.mjs';
+import { publicUser, indexBy, scopeEmails, fullName } from '../lib/repo.mjs';
 import { sendTempPassword, sendWelcome } from '../lib/email.mjs';
 
 // ---------------- Usuarios ----------------
@@ -14,7 +14,7 @@ export async function listUsers({ repo }) {
   const torresById = indexBy(torres, 'id');
   return {
     usuarios: usuarios
-      .map((u) => ({ ...publicUser(u, torresById), aprobadores: resolveApprovers(u, usuarios, torresById).map((a) => a.nombre) }))
+      .map((u) => publicUser(u, torresById))
       .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es')),
   };
 }
@@ -30,7 +30,6 @@ function readUser(body, { isNew }) {
     fecha_nacimiento: str(body.fecha_nacimiento, 10) || null,
     puesto: str(body.puesto, 120) || null,
     telefono: str(body.telefono, 30) || null,
-    aprobador_correo: email(body.aprobador_correo) || null,
     activo: body.activo !== false,
   };
   if (isNew) u.correo = email(body.correo);
@@ -43,10 +42,6 @@ function readUser(body, { isNew }) {
 
 async function assertRefs(u, repo) {
   if (u.torre_id && !(await repo.torres()).some((t) => t.id === u.torre_id)) throw badRequest('Torre de servicio inválida');
-  if (u.aprobador_correo) {
-    if (u.aprobador_correo === u.correo) throw badRequest('Un usuario no puede ser su propio aprobador');
-    if (!(await repo.usuarios()).some((x) => x.correo === u.aprobador_correo)) throw badRequest('El aprobador indicado no existe');
-  }
 }
 
 export async function createUser({ body, repo, user: admin }) {
@@ -93,12 +88,11 @@ export async function deleteUser({ params, user: admin, repo }) {
   if (correo === admin.correo) throw forbidden('No puedes eliminar tu propia cuenta');
   const current = await getItem(TABLES.usuarios, { correo });
   if (!current) throw notFound('Usuario no encontrado');
-  // Quitarlo de aprobadores de torres y de excepciones
+  // Quitarlo de los aprobadores y de los avisos por torre
+  const aprobadores = await repo.aprobadores();
+  if (aprobadores.includes(correo)) await saveApprovers(aprobadores.filter((c) => c !== correo));
   for (const t of await repo.torres()) {
-    if ((t.aprobadores || []).includes(correo)) await patchItem(TABLES.torres, { id: t.id }, { aprobadores: t.aprobadores.filter((c) => c !== correo) });
-  }
-  for (const u of await repo.usuarios()) {
-    if (u.aprobador_correo === correo) await patchItem(TABLES.usuarios, { correo: u.correo }, { aprobador_correo: null });
+    if ((t.notificar || []).includes(correo)) await patchItem(TABLES.torres, { id: t.id }, { notificar: t.notificar.filter((c) => c !== correo) });
   }
   await deleteItem(TABLES.usuarios, { correo });
   // El historial de solicitudes se conserva para reportes.
@@ -142,7 +136,7 @@ export async function listTorres({ repo }) {
       .map((t) => ({
         ...t,
         miembros: usuarios.filter((u) => u.torre_id === t.id && u.activo !== false).length,
-        aprobadores_detalle: (t.aprobadores || []).map((c) => ({ correo: c, nombre: fullName(byEmail[c]) || c })),
+        notificar_detalle: (t.notificar || []).map((c) => ({ correo: c, nombre: fullName(byEmail[c]) || c })),
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
   };
@@ -153,12 +147,13 @@ async function readTorre(body, repo) {
     nombre: str(body.nombre, 80),
     descripcion: str(body.descripcion, 300) || null,
     color: /^#[0-9a-fA-F]{6}$/.test(body.color || '') ? body.color : '#1B4F8C',
-    aprobadores: Array.isArray(body.aprobadores) ? [...new Set(body.aprobadores.map(email).filter(Boolean))] : [],
+    // Personas que reciben aviso cuando se aprueba una ausencia de la torre
+    notificar: Array.isArray(body.notificar) ? [...new Set(body.notificar.map(email).filter(Boolean))] : [],
   };
   if (!t.nombre) throw badRequest('El nombre de la torre es obligatorio');
   const usuarios = indexBy(await repo.usuarios(), 'correo');
-  const invalid = t.aprobadores.filter((c) => !usuarios[c]);
-  if (invalid.length) throw badRequest(`Aprobadores inexistentes: ${invalid.join(', ')}`);
+  const invalid = t.notificar.filter((c) => !usuarios[c]);
+  if (invalid.length) throw badRequest(`Usuarios inexistentes: ${invalid.join(', ')}`);
   return t;
 }
 
@@ -167,15 +162,13 @@ export async function createTorre({ body, repo }) {
   if ((await repo.torres()).some((x) => x.nombre.toLowerCase() === t.nombre.toLowerCase())) throw conflict('Ya existe una torre con ese nombre');
   const item = { id: crypto.randomUUID(), ...t, creado: new Date().toISOString() };
   await putItem(TABLES.torres, item);
-  await promoteApprovers(t.aprobadores, repo);
   return { torre: item };
 }
 
 export async function updateTorre({ params, body, repo }) {
   if (!(await getItem(TABLES.torres, { id: params.id }))) throw notFound('Torre no encontrada');
   const t = await readTorre(body, repo);
-  const updated = await patchItem(TABLES.torres, { id: params.id }, { ...t, actualizado: new Date().toISOString() });
-  await promoteApprovers(t.aprobadores, repo);
+  const updated = await patchItem(TABLES.torres, { id: params.id }, { ...t, aprobadores: null, actualizado: new Date().toISOString() });
   return { torre: updated };
 }
 
@@ -187,12 +180,33 @@ export async function deleteTorre({ params, repo }) {
   return { ok: true, desasignados: miembros.length };
 }
 
-// Quien aprueba una torre necesita al menos el rol Aprobador para ver la bandeja.
-async function promoteApprovers(correos, repo) {
-  const usuarios = indexBy(await repo.usuarios(), 'correo');
-  for (const c of correos) {
-    if (usuarios[c]?.rol === 'Usuario') await patchItem(TABLES.usuarios, { correo: c }, { rol: 'Aprobador' });
+// ---------------- Aprobadores (aplican a todos los usuarios) ----------------
+async function saveApprovers(list) {
+  await putItem(TABLES.config, { clave: 'aprobadores', valor: list });
+  clearConfigCache();
+}
+
+export async function getApprovers({ repo }) {
+  const [aprobadores, usuarios] = await Promise.all([repo.aprobadores(), repo.usuarios()]);
+  const byEmail = indexBy(usuarios, 'correo');
+  return { aprobadores: aprobadores.filter((c) => byEmail[c]).map((c) => ({ correo: c, nombre: fullName(byEmail[c]), rol: byEmail[c].rol })) };
+}
+
+export async function updateApprovers({ body, repo }) {
+  const usuarios = await repo.usuarios();
+  const byEmail = indexBy(usuarios, 'correo');
+  const list = [...new Set((Array.isArray(body.aprobadores) ? body.aprobadores : []).map(email).filter(Boolean))];
+  const invalid = list.filter((c) => !byEmail[c] || byEmail[c].activo === false);
+  if (invalid.length) throw badRequest(`Usuarios inválidos o inactivos: ${invalid.join(', ')}`);
+  await saveApprovers(list);
+  // El rol Aprobador da acceso a la bandeja y reportes; se ajusta según la lista.
+  for (const u of usuarios) {
+    if (list.includes(u.correo) && u.rol === 'Usuario') await patchItem(TABLES.usuarios, { correo: u.correo }, { rol: 'Aprobador' });
+    if (!list.includes(u.correo) && u.rol === 'Aprobador') await patchItem(TABLES.usuarios, { correo: u.correo }, { rol: 'Usuario' });
   }
+  repo.invalidate('usuarios');
+  repo.invalidate('aprobadores');
+  return getApprovers({ repo: { ...repo, aprobadores: async () => list } });
 }
 
 // ---------------- Días festivos ----------------
@@ -237,7 +251,6 @@ export async function updateBeneficio({ params, body }) {
     minimo_meses: num(body.minimo_meses, 0, 120),
     anticipo_dias: b.periodo === 'lft' ? num(body.anticipo_dias) : undefined,
     acumulable: b.periodo === 'lft' && typeof body.acumulable === 'boolean' ? body.acumulable : undefined,
-    requiere_backup: typeof body.requiere_backup === 'boolean' ? body.requiere_backup : undefined,
     permite_retroactivo: typeof body.permite_retroactivo === 'boolean' ? body.permite_retroactivo : undefined,
     activo: typeof body.activo === 'boolean' ? body.activo : undefined,
     genero: ['Todos', 'Hombre', 'Mujer'].includes(body.genero) ? body.genero : undefined,
@@ -303,7 +316,7 @@ export async function updateConfig({ body }) {
 export async function report({ user, query, repo }) {
   const anio = /^\d{4}$/.test(query.anio || '') ? query.anio : todayISO().slice(0, 4);
   const [todas, usuarios, torres, beneficios] = await Promise.all([repo.solicitudes(), repo.usuarios(), repo.torres(), repo.beneficios()]);
-  const scope = scopeEmails(user, usuarios, torres);
+  const scope = scopeEmails(user);
   const torresById = indexBy(torres, 'id');
   const usersByEmail = indexBy(usuarios, 'correo');
   const inScope = (c) => !scope || scope.has(c);
@@ -348,7 +361,7 @@ export async function report({ user, query, repo }) {
 export async function balancesReport({ user, repo }) {
   const hoy = todayISO();
   const [usuarios, torres, beneficios, todas, adicionales] = await Promise.all([repo.usuarios(), repo.torres(), repo.beneficios(), repo.solicitudes(), repo.adicionales()]);
-  const scope = scopeEmails(user, usuarios, torres);
+  const scope = scopeEmails(user);
   const torresById = indexBy(torres, 'id');
   const filas = usuarios
     .filter((u) => u.activo !== false && (!scope || scope.has(u.correo)))

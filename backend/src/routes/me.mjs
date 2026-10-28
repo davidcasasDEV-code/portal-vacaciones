@@ -3,17 +3,17 @@ import { patchItem } from '../lib/db.mjs';
 import { badRequest, str, isISODate } from '../lib/http.mjs';
 import { todayISO, nextOccurrence, diffDays, addDays, weekday, monthRange, seniority } from '../lib/dates.mjs';
 import { computeBalance, applicableBenefits, lftTable, ACTIVE_STATUSES } from '../lib/balance.mjs';
-import { publicUser, indexBy, resolveApprovers, directoryEntry, fullName } from '../lib/repo.mjs';
+import { publicUser, indexBy, resolveApprovers, directoryEntry, fullName, backupsOf } from '../lib/repo.mjs';
 
 const GENEROS = ['Hombre', 'Mujer'];
 
 export async function getMe({ user, repo }) {
-  const [torres, usuarios] = await Promise.all([repo.torres(), repo.usuarios()]);
+  const [torres, usuarios, aprobadores] = await Promise.all([repo.torres(), repo.usuarios(), repo.aprobadores()]);
   const torresById = indexBy(torres, 'id');
   return {
     user: publicUser(user, torresById),
-    aprobadores: resolveApprovers(user, usuarios, torresById),
-    es_aprobador: user.rol === 'Admin' || torres.some((t) => (t.aprobadores || []).includes(user.correo)) || usuarios.some((u) => u.aprobador_correo === user.correo),
+    aprobadores: resolveApprovers(user, usuarios, aprobadores),
+    es_aprobador: user.rol === 'Admin' || aprobadores.includes(user.correo),
   };
 }
 
@@ -126,7 +126,8 @@ export async function getDashboard({ user, repo }) {
     .sort((a, b) => a.dias - b.dias)
     .slice(0, 6);
 
-  const isApprover = (s) => user.rol === 'Admin' || (s.aprobadores || []).includes(user.correo);
+  const aprobadoresCfg = await repo.aprobadores();
+  const isApprover = (s) => user.rol === 'Admin' || aprobadoresCfg.includes(user.correo) || (s.aprobadores || []).includes(user.correo);
   const porAprobar = todas.filter((s) => s.estatus === 'Pendiente' && s.correo_solicitante !== user.correo && isApprover(s));
 
   // Mini calendario del mes actual
@@ -157,7 +158,7 @@ export async function getDashboard({ user, repo }) {
       .slice(0, 5)
       .map((s) => ({ ...ausencia(s), dias: s.fechas?.length || 0, creado: s.creado })),
     coberturas: activas
-      .filter((s) => s.backup_correo === user.correo && s.hasta >= hoy)
+      .filter((s) => backupsOf(s).includes(user.correo) && s.hasta >= hoy)
       .sort((a, b) => a.desde.localeCompare(b.desde))
       .map(ausencia),
     fuera_hoy: activas.filter((s) => (s.fechas || []).includes(hoy)).map(ausencia),
@@ -168,7 +169,7 @@ export async function getDashboard({ user, repo }) {
     por_aprobar: porAprobar.length,
     mes: { desde: mDesde, hasta: mHasta, equipo_por_dia: equipoPorDia, mis_dias: misDias },
     total_colaboradores: activos.length,
-    mi_aprobador: resolveApprovers(user, usuarios, torresById).map((a) => a.nombre).join(', '),
+    aprobadores: resolveApprovers(user, usuarios, await repo.aprobadores()).map((a) => a.nombre),
     nombre: fullName(user),
   };
 }

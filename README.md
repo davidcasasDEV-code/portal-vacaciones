@@ -40,14 +40,14 @@ reglas (saldos, festivos, backups) y enviar correos con SES.
 
 | Tabla | Llave | Contenido |
 |---|---|---|
-| `Go_Productivity_Usuarios` | `correo` | Perfil, `rol` (Admin/Aprobador/Usuario), `torre_id`, aprobador de excepción, hash de contraseña (scrypt) |
+| `Go_Productivity_Usuarios` | `correo` | Perfil, `rol` (Admin/Aprobador/Usuario), `torre_id`, hash de contraseña (scrypt) |
 | `Go_Productivity_Solicitudes` | `id` (+ GSI `solicitante-desde-index`) | Solicitudes con folio, días hábiles, backup, aprobadores, historial |
 | `Go_Productivity_Beneficios` | `clave` | Reglas de cada beneficio (LFT, anuales, ilimitados) |
-| `Go_Productivity_Torres` | `id` | Torres de servicio y sus aprobadores |
+| `Go_Productivity_Torres` | `id` | Torres de servicio y a quién notificar las aprobaciones |
 | `Go_Productivity_Dias_Festivos` | `fecha` | Festivos oficiales y de empresa |
 | `Go_Productivity_Saldo_Adicional` | `id` | Ajustes manuales de saldo (+/−) |
 | `Go_Productivity_Recuperar_Cuenta` | `correo` | Códigos de verificación (hash, TTL 15 min) |
-| `Go_Productivity_Config` | `clave` | `jwt_secret`, remitente SES, URL del portal, contador de folios |
+| `Go_Productivity_Config` | `clave` | `jwt_secret`, remitente SES, URL del portal, aprobadores, contador de folios |
 
 ## Reglas de negocio
 
@@ -55,12 +55,13 @@ reglas (saldos, festivos, backups) y enviar correos con SES.
   6–10 = 22, 11–15 = 24… Anticipo de 6 días a los 6 meses. Acumulable (configurable).
 - **Días hábiles**: lunes a viernes sin festivos. No se puede iniciar/terminar en festivo
   o fin de semana; los festivos dentro del rango no se descuentan.
-- **Backup**: obligatorio según el beneficio. Se elige de la misma torre (o de todos si la
-  persona no tiene torre). El backup debe estar disponible esas fechas, y quien es backup
+- **Backups**: al menos uno obligatorio en toda solicitud (se pueden elegir varios). Se eligen de
+  la misma torre (o de todos si la persona no tiene torre). El backup debe estar disponible esas fechas, y quien es backup
   no puede pedir ausencias en los días que cubre.
-- **Aprobadores**: excepción por usuario → aprobadores de su torre → administradores.
+- **Aprobadores**: lista global que define el Admin en Usuarios (si está vacía, los administradores).
+  Cada torre define a quién solo se le **notifica** cuando se aprueba una ausencia de sus miembros.
 - **Correos**: al solicitar (colaborador, aprobadores, backup), al aprobar/rechazar
-  (colaborador y backup) y al cancelar.
+  (colaborador, backups y notificados de la torre) y al cancelar.
 - **Perfil obligatorio**: nombre, apellidos, género, fecha de nacimiento y de ingreso.
   Si falta algo, el portal lleva al usuario a completarlo antes de continuar.
 
@@ -69,7 +70,7 @@ reglas (saldos, festivos, backups) y enviar correos con SES.
 | Rol | Acceso |
 |---|---|
 | Usuario | Inicio, calendario/solicitud, mis solicitudes, saldos, mapa del equipo, perfil |
-| Aprobador | + Aprobaciones y reportes de las torres que aprueba |
+| Aprobador | + Aprobaciones y reportes (se asigna al incluirlo en la lista de aprobadores) |
 | Admin | + Todo: usuarios, torres, festivos, beneficios, ajustes de saldo, configuración |
 
 ## Desarrollo local

@@ -16,9 +16,9 @@ export function openRequestDetail(s, cat, { actions, extra } = {}) {
           ${fila('Fechas', fmtRange(s.desde, s.hasta))}
           ${fila('Días hábiles', plural(s.fechas?.length || 0, 'día', 'días'))}
           ${fila('Descuenta del saldo', s.dias_descuento != null ? num(s.dias_descuento) : '')}
-          ${fila('Backup', s.backup_nombre || 'Sin backup')}
+          ${fila('Backup(s)', s.backup_nombre || 'Sin backup')}
           ${fila('Aprobador(es)', (s.aprobadores || []).join(', '))}
-          ${fila('Decidió', s.aprobado_por_nombre)}
+          ${fila(s.estatus === 'Rechazado' ? 'Rechazó' : 'Aprobó', s.aprobado_por_nombre)}
           <div class="full">${fila('Comentarios del colaborador', s.descripcion)}</div>
           <div class="full">${fila('Comentario del aprobador', s.comentario_aprobador)}</div>
         </div>

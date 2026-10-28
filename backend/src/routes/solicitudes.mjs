@@ -6,7 +6,7 @@ import { todayISO, monthRange } from '../lib/dates.mjs';
 import { analyzeRequest } from '../lib/rules.mjs';
 import { ACTIVE_STATUSES } from '../lib/balance.mjs';
 import { notifyCreated, notifyDecision, notifyCancelled } from '../lib/email.mjs';
-import { fullName, shortName, indexBy, missingProfileFields, scopeEmails, directoryEntry } from '../lib/repo.mjs';
+import { fullName, shortName, indexBy, missingProfileFields, directoryEntry, backupsOf, torreNotifyEmails } from '../lib/repo.mjs';
 
 const histEntry = (accion, por, comentario) => ({ fecha: new Date().toISOString(), accion, por, comentario: comentario || undefined });
 
@@ -20,7 +20,8 @@ function readInput(body) {
     tipo: str(body.tipo, 40),
     desde: str(body.desde, 10),
     hasta: str(body.hasta, 10) || str(body.desde, 10),
-    backup_correo: email(body.backup_correo) || null,
+    // Uno o más backups (se acepta backup_correo de clientes anteriores)
+    backups: [...new Set((Array.isArray(body.backups) ? body.backups : [body.backup_correo]).map(email).filter(Boolean))].slice(0, 10),
     descripcion: str(body.descripcion, 500),
   };
 }
@@ -39,7 +40,7 @@ export async function create({ user, body, repo }) {
 
   const [beneficios, usuarios] = await Promise.all([repo.beneficios(), repo.usuarios()]);
   const beneficio = beneficios.find((b) => b.clave === input.tipo);
-  const backup = input.backup_correo ? usuarios.find((u) => u.correo === input.backup_correo) : null;
+  const backups = input.backups.map((c) => usuarios.find((u) => u.correo === c)).filter(Boolean);
   const seq = await nextCounter(TABLES.config, 'folio_seq');
   const now = new Date().toISOString();
 
@@ -57,15 +58,16 @@ export async function create({ user, body, repo }) {
     dias_descuento: a.dias_descuento,
     estatus: 'Pendiente',
     aprobadores: a.aprobadores.map((x) => x.correo),
-    backup_correo: backup?.correo || null,
-    backup_nombre: backup ? fullName(backup) : null,
+    backup_correos: backups.map((b) => b.correo),
+    backup_nombres: backups.map(fullName),
+    backup_nombre: backups.map(fullName).join(', ') || null,
     descripcion: input.descripcion || null,
     creado: now,
     actualizado: now,
     historial: [histEntry('Creada', fullName(user), input.descripcion)],
   };
   await putItem(TABLES.solicitudes, item);
-  await notifyCreated({ ...item, nombre_corto: shortName(user) }, { aprobadores: a.aprobadores, backupEmail: item.backup_correo });
+  await notifyCreated({ ...item, nombre_corto: shortName(user) }, { aprobadores: a.aprobadores, backupEmails: item.backup_correos });
   return { solicitud: item, aprobadores: a.aprobadores };
 }
 
@@ -90,20 +92,22 @@ export async function cancel({ user, params, body, repo }) {
     actualizado: new Date().toISOString(),
     historial: [...(s.historial || []), histEntry('Cancelada', fullName(user), comentario)],
   });
-  await notifyCancelled({ ...updated }, { canceladoPor: fullName(user), aprobadores: s.aprobadores || [], backupEmail: s.backup_correo });
+  await notifyCancelled({ ...updated }, { canceladoPor: fullName(user), aprobadores: s.aprobadores || [], backupEmails: backupsOf(s) });
   repo.invalidate('solicitudes');
   return { solicitud: updated };
 }
 
 // ---------- Aprobaciones ----------
-const canDecide = (user, s) => user.rol === 'Admin' || (s.aprobadores || []).includes(user.correo);
+// Puede decidir: Admin, cualquier aprobador vigente o quien fue aprobador al crearse la solicitud.
+const canDecide = (user, s, aprobadores = []) => user.rol === 'Admin' || aprobadores.includes(user.correo) || (s.aprobadores || []).includes(user.correo);
 
 export async function approvals({ user, query, repo }) {
   const [todas, usuarios, torres] = await Promise.all([repo.solicitudes(), repo.usuarios(), repo.torres()]);
   const torresById = indexBy(torres, 'id');
   const usersByEmail = indexBy(usuarios, 'correo');
-  const scope = scopeEmails(user, usuarios, torres);
-  const visibles = todas.filter((s) => s.correo_solicitante !== user.correo && (canDecide(user, s) || (scope && scope.has(s.correo_solicitante))));
+  const aprobadores = await repo.aprobadores();
+  const decide = (s) => canDecide(user, s, aprobadores);
+  const visibles = todas.filter((s) => s.correo_solicitante !== user.correo && (user.rol !== 'Usuario' || decide(s)));
   const activas = todas.filter((s) => ACTIVE_STATUSES.includes(s.estatus));
 
   const enrich = (s) => {
@@ -112,7 +116,7 @@ export async function approvals({ user, query, repo }) {
     return {
       ...s,
       torre: torresById[torreId]?.nombre || null,
-      puede_decidir: s.estatus === 'Pendiente' && canDecide(user, s),
+      puede_decidir: s.estatus === 'Pendiente' && decide(s),
       // Quién más de la misma torre estará fuera esas fechas
       traslapes: activas
         .filter((o) => o.id !== s.id && o.correo_solicitante !== s.correo_solicitante && torreId && usersByEmail[o.correo_solicitante]?.torre_id === torreId)
@@ -125,7 +129,7 @@ export async function approvals({ user, query, repo }) {
   const list = visibles.filter((s) => !estatus || s.estatus === estatus).sort((a, b) => (b.creado || '').localeCompare(a.creado || ''));
   return {
     solicitudes: list.map(enrich),
-    pendientes: visibles.filter((s) => s.estatus === 'Pendiente' && canDecide(user, s)).length,
+    pendientes: visibles.filter((s) => s.estatus === 'Pendiente' && decide(s)).length,
     hoy: todayISO(),
   };
 }
@@ -134,7 +138,7 @@ export async function decide({ user, params, body, repo }) {
   const s = await getItem(TABLES.solicitudes, { id: params.id });
   if (!s) throw notFound('Solicitud no encontrada');
   if (s.correo_solicitante === user.correo) throw forbidden('No puedes aprobar tus propias solicitudes');
-  if (!canDecide(user, s)) throw forbidden('No eres aprobador de esta solicitud');
+  if (!canDecide(user, s, await repo.aprobadores())) throw forbidden('No eres aprobador de esta solicitud');
   if (s.estatus !== 'Pendiente') throw conflict(`La solicitud ya fue ${s.estatus.toLowerCase()}`);
   const accion = body.accion;
   const comentario = str(body.comentario, 500);
@@ -159,8 +163,16 @@ export async function decide({ user, params, body, repo }) {
     if (err.name === 'ConditionalCheckFailedException') throw conflict('Otra persona ya resolvió esta solicitud');
     throw err;
   });
-  const solicitante = (await repo.usuarios()).find((u) => u.correo === s.correo_solicitante);
-  await notifyDecision({ ...updated, nombre_corto: shortName(solicitante) || s.solicitante }, { decididoPor: fullName(user), backupEmail: s.backup_correo });
+  const [usuarios, torres] = await Promise.all([repo.usuarios(), repo.torres()]);
+  const solicitante = usuarios.find((u) => u.correo === s.correo_solicitante);
+  await notifyDecision(
+    { ...updated, nombre_corto: shortName(solicitante) || s.solicitante },
+    {
+      decididoPor: fullName(user),
+      backupEmails: backupsOf(s),
+      notificarEmails: solicitante ? torreNotifyEmails(solicitante, indexBy(torres, 'id'), usuarios) : [],
+    },
+  );
   return { solicitud: updated };
 }
 
@@ -188,7 +200,7 @@ export async function teamCalendar({ query, repo }) {
       hasta: s.hasta,
       fechas: s.fechas.filter((f) => f >= desde && f <= hasta),
       backup: s.backup_nombre || null,
-      backup_correo: s.backup_correo || null,
+      backup_correos: backupsOf(s),
     }));
   return { mes, desde, hasta, miembros, ausencias, festivos: festivos.filter((f) => f.fecha >= desde && f.fecha <= hasta), hoy: todayISO() };
 }

@@ -1247,6 +1247,10 @@ table.data th.num {
   border-radius: 6px;
   padding: 1px 6px;
   width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: var(--surface-3);
 }
 .cal-day .team {

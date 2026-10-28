@@ -9,7 +9,7 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
   const cat = await loadCatalogos();
   const tipos = cat.mis_beneficios.map((k) => cat.beneficiosMap[k]).filter(Boolean);
   const hoy = cat.hoy;
-  const state = { tipo: tipo || 'vacaciones', desde: desde || '', hasta: hasta || desde || '', backup: '', filtro: '', preview: null, seq: 0 };
+  const state = { tipo: tipo || 'vacaciones', desde: desde || '', hasta: hasta || desde || '', backups: [], filtro: '', preview: null, seq: 0 };
 
   return new Promise((resolve) => {
     const m = openModal({
@@ -36,9 +36,9 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
           </div>
           <div id="rq-preview"><div class="skeleton" style="height:90px"></div></div>
           <div class="field" id="rq-backup-wrap">
-            <span class="label" id="rq-backup-label">Backup (quién te cubre)</span>
+            <span class="label" id="rq-backup-label">Backups (quién te cubre) *</span>
             <input class="input" id="rq-backup-filter" placeholder="Buscar compañero…" aria-label="Buscar backup" style="min-height:38px" />
-            <div class="backup-list" id="rq-backups" role="radiogroup" aria-labelledby="rq-backup-label"></div>
+            <div class="backup-list" id="rq-backups" role="group" aria-labelledby="rq-backup-label"></div>
             <span class="hint" id="rq-backup-hint"></span>
           </div>
           <div class="field">
@@ -71,7 +71,7 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
       const p = state.preview;
       const wrap = $('#rq-backups', el);
       if (!p) return;
-      $('#rq-backup-label', el).textContent = `Backup (quién te cubre)${p.requiere_backup ? ' *' : ' — opcional'}`;
+      $('#rq-backup-label', el).textContent = `Backups (quién te cubre) * · ${state.backups.length ? `${state.backups.length} seleccionado(s)` : 'elige al menos uno'}`;
       const f = state.filtro.toLowerCase();
       const list = p.backups.filter((b) => !f || b.nombre.toLowerCase().includes(f));
       mount(
@@ -79,7 +79,7 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
         list.length
           ? list.map(
               (b) => html`<label class="backup-opt ${b.disponible ? '' : 'unavailable'}">
-                <input type="radio" name="backup" value="${b.correo}" ${b.correo === state.backup ? 'checked' : ''} ${b.disponible ? '' : 'disabled'} />
+                <input type="checkbox" name="backup" value="${b.correo}" ${state.backups.includes(b.correo) ? 'checked' : ''} ${b.disponible ? '' : 'disabled'} />
                 <span class="avatar sm">${b.nombre.split(' ').slice(0, 2).map((x) => x[0]).join('')}</span>
                 <span class="grow"><b class="small">${b.nombre}</b><br /><span class="xs muted">${b.disponible ? b.torre || 'Disponible' : b.motivo}</span></span>
                 ${b.disponible ? html`<span class="badge Aprobado plain">Disponible</span>` : html`<span class="badge plain">No disponible</span>`}
@@ -103,7 +103,7 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
       const s = p.saldo;
       const ilimitado = !s || s.ilimitado;
       const despuesBad = !ilimitado && p.saldo_despues < 0;
-      const errores = p.errores.filter((e) => !/Selecciona a la persona/.test(e));
+      const errores = p.errores.filter((e) => !/Selecciona al menos una persona/.test(e));
       mount(
         box,
         html`
@@ -140,10 +140,14 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
         }
         const seq = ++state.seq;
         try {
-          const p = await post('/solicitudes/preview', { tipo: state.tipo, desde: state.desde, hasta: state.hasta || state.desde, backup_correo: state.backup || undefined });
+          const p = await post('/solicitudes/preview', { tipo: state.tipo, desde: state.desde, hasta: state.hasta || state.desde, backups: state.backups });
           if (seq !== state.seq) return;
           state.preview = p;
-          if (state.backup && !p.backups.some((b) => b.correo === state.backup && b.disponible)) state.backup = '';
+          const disponibles = new Set(p.backups.filter((b) => b.disponible).map((b) => b.correo));
+          if (state.backups.some((c) => !disponibles.has(c))) {
+            state.backups = state.backups.filter((c) => disponibles.has(c));
+            return refresh();
+          }
           renderPreview();
           renderBackups();
         } catch (e) {
@@ -163,7 +167,7 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
         }
       }
       if (t.name === 'hasta') state.hasta = t.value;
-      if (t.name === 'backup') state.backup = t.value;
+      if (t.name === 'backup') state.backups = [...form.querySelectorAll('input[name=backup]:checked')].map((x) => x.value).concat(state.backups.filter((c) => !form.querySelector(`input[name=backup][value="${c}"]`)));
       if (['tipo', 'desde', 'hasta', 'backup'].includes(t.name)) {
         syncLimits();
         refresh();
@@ -181,7 +185,7 @@ export async function openRequestModal({ desde, hasta, tipo } = {}) {
           tipo: state.tipo,
           desde: state.desde,
           hasta: state.hasta || state.desde,
-          backup_correo: state.backup || undefined,
+          backups: state.backups,
           descripcion: $('#rq-nota', el).value,
         });
         toast(html`<b>Solicitud ${r.solicitud.folio} enviada.</b><br>Te enviamos el detalle por correo y avisamos a ${r.aprobadores.map((a) => a.nombre).join(', ')}.`, 'ok', 8000);

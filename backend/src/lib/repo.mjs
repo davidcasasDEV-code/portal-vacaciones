@@ -1,6 +1,6 @@
 // Acceso a datos con caché por invocación. Los volúmenes son pequeños (decenas de
 // usuarios, cientos de solicitudes), así que los catálogos se leen completos.
-import { TABLES } from './config.mjs';
+import { TABLES, getConfig } from './config.mjs';
 import { scanAll, queryAll } from './db.mjs';
 
 export function createRepo() {
@@ -16,6 +16,8 @@ export function createRepo() {
     festivos: () => once('festivos', async () => (await scanAll(TABLES.festivos)).sort((a, b) => a.fecha.localeCompare(b.fecha))),
     holidaySet: () => once('holidaySet', async () => new Set((await scanAll(TABLES.festivos)).map((f) => f.fecha))),
     adicionales: () => once('adicionales', () => scanAll(TABLES.adicional)),
+    // Aprobadores de solicitudes definidos por el Admin (aplican a todos los usuarios)
+    aprobadores: () => once('aprobadores', async () => (await getConfig()).aprobadores || []),
     solicitudes: () => once('solicitudes', () => scanAll(TABLES.solicitudes)),
     solicitudesDe: (correo) =>
       once(`sol:${correo}`, () =>
@@ -68,7 +70,6 @@ export function publicUser(u, torresById = {}) {
     fecha_nacimiento: u.fecha_nacimiento || '',
     puesto: u.puesto || '',
     telefono: u.telefono || '',
-    aprobador_correo: u.aprobador_correo || null,
     activo: u.activo !== false,
     tiene_password: Boolean(u.password_hash),
     debe_cambiar_password: Boolean(u.debe_cambiar_password),
@@ -92,28 +93,28 @@ export function directoryEntry(u, torresById = {}) {
 export const indexBy = (arr, key) => Object.fromEntries(arr.map((x) => [x[key], x]));
 
 /**
- * Aprobadores de un usuario:
- *  1) excepción por usuario (aprobador_correo),
- *  2) aprobadores de su torre de servicio,
- *  3) si no hay ninguno, los administradores.
- * Nunca el propio solicitante.
+ * Aprobadores de un usuario: la lista global que define el Admin; si está vacía,
+ * los administradores. Nunca el propio solicitante.
  */
-export function resolveApprovers(user, usuarios, torresById) {
+export function resolveApprovers(user, usuarios, aprobadores = []) {
   const byEmail = indexBy(usuarios, 'correo');
   const active = (c) => byEmail[c] && byEmail[c].activo !== false && c !== user.correo;
-  let list = [];
-  if (user.aprobador_correo && active(user.aprobador_correo)) list = [user.aprobador_correo];
-  if (!list.length && user.torre_id) list = (torresById[user.torre_id]?.aprobadores || []).filter(active);
+  let list = aprobadores.filter(active);
   if (!list.length) list = usuarios.filter((u) => u.rol === 'Admin' && active(u.correo)).map((u) => u.correo);
   return list.map((c) => ({ correo: c, nombre: fullName(byEmail[c]) }));
 }
 
-// Correos de colaboradores cuyo trabajo puede ver un usuario en reportes:
-// Admin → todos; Aprobador → miembros de sus torres + quienes lo tienen como excepción.
-export function scopeEmails(viewer, usuarios, torres) {
-  if (viewer.rol === 'Admin') return null; // sin restricción
-  const myTorres = new Set(torres.filter((t) => (t.aprobadores || []).includes(viewer.correo)).map((t) => t.id));
-  return new Set(
-    usuarios.filter((u) => u.aprobador_correo === viewer.correo || (u.torre_id && myTorres.has(u.torre_id))).map((u) => u.correo),
-  );
+// Correos de quienes reciben aviso cuando se aprueba una ausencia de alguien de su torre.
+export function torreNotifyEmails(user, torresById, usuarios) {
+  const byEmail = indexBy(usuarios, 'correo');
+  return (torresById[user.torre_id]?.notificar || []).filter((c) => byEmail[c] && byEmail[c].activo !== false && c !== user.correo);
+}
+
+// Backups de una solicitud (soporta el campo único de versiones anteriores).
+export const backupsOf = (s) => s.backup_correos || (s.backup_correo ? [s.backup_correo] : []);
+
+// Reportes: Admin y aprobadores ven a todos los colaboradores.
+export function scopeEmails(viewer) {
+  if (viewer.rol === 'Admin' || viewer.rol === 'Aprobador') return null;
+  return new Set([viewer.correo]);
 }

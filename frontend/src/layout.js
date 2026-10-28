@@ -120,9 +120,21 @@ export function setActiveNav(path) {
   });
 }
 
-export function setTitle(t) {
+// Título del encabezado como ruta: "Gestión → Aprobaciones"
+export function setTitle(path, title) {
   const el = $('#page-title');
-  if (el) el.textContent = t;
+  if (!el) return;
+  let group = null;
+  let label = title;
+  for (const item of NAV.filter(allowed)) {
+    if (item.group) group = item.group;
+    else if (item.href === path) {
+      label = item.label;
+      break;
+    }
+  }
+  if (!NAV.some((i) => i.href === path)) group = null;
+  mount(el, group ? html`<span class="muted" style="font-weight:600">${group}</span> <span class="muted" aria-hidden="true">→</span> ${label}` : label);
 }
 
 export async function refreshBadges() {

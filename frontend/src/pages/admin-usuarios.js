@@ -8,16 +8,17 @@ import { dataTable } from '../ui/table.js';
 
 const ROLES = [
   { value: 'Usuario', label: 'Usuario — solicita y consulta' },
-  { value: 'Aprobador', label: 'Aprobador — aprueba y ve reportes de sus torres' },
+  { value: 'Aprobador', label: 'Aprobador — aprueba solicitudes y ve reportes' },
   { value: 'Admin', label: 'Admin — acceso total' },
 ];
 
 export default async function adminUsuarios(el) {
   const cat = await loadCatalogos(true);
   let usuarios = (await get('/admin/usuarios')).usuarios;
+  let aprobadores = (await get('/admin/aprobadores')).aprobadores;
 
   const reload = async () => {
-    usuarios = (await get('/admin/usuarios')).usuarios;
+    [usuarios, aprobadores] = await Promise.all([get('/admin/usuarios').then((r) => r.usuarios), get('/admin/aprobadores').then((r) => r.aprobadores)]);
     draw();
   };
 
@@ -44,7 +45,6 @@ export default async function adminUsuarios(el) {
   function userForm(u) {
     const isNew = !u;
     u ||= { rol: 'Usuario', activo: true };
-    const approverOpts = usuarios.filter((x) => x.correo !== u.correo && x.activo && x.rol !== 'Usuario');
     const m = openModal({
       title: isNew ? 'Nuevo usuario' : `Editar · ${u.nombre_completo}`,
       size: 'lg',
@@ -59,9 +59,6 @@ export default async function adminUsuarios(el) {
           <div class="field"><label for="u-puesto">Puesto</label><input class="input" id="u-puesto" name="puesto" value="${u.puesto || ''}" /></div>
           <div class="field"><label for="u-ingreso">Fecha de ingreso</label><input class="input" id="u-ingreso" name="fecha_ingreso" type="date" value="${u.fecha_ingreso || ''}" /><span class="hint">Define su saldo de vacaciones según la LFT.</span></div>
           <div class="field"><label for="u-nac">Fecha de nacimiento</label><input class="input" id="u-nac" name="fecha_nacimiento" type="date" value="${u.fecha_nacimiento || ''}" /></div>
-          <div class="field full"><label for="u-aprob">Aprobador específico (excepción)</label>
-            <select class="input" id="u-aprob" name="aprobador_correo"><option value="">Usar los aprobadores de su torre</option>${approverOpts.map((a) => html`<option value="${a.correo}" ${u.aprobador_correo === a.correo ? 'selected' : ''}>${a.nombre_completo} (${a.rol})</option>`)}</select>
-            <span class="hint">Si lo dejas vacío, sus solicitudes llegan a los aprobadores de su torre; sin torre, a los administradores.</span></div>
           <label class="check full"><input type="checkbox" name="activo" ${u.activo !== false ? 'checked' : ''} /> Usuario activo (puede iniciar sesión)</label>
           ${isNew
             ? html`<div class="field full"><span class="label">Acceso inicial</span>
@@ -125,6 +122,45 @@ export default async function adminUsuarios(el) {
     );
   }
 
+  function approversForm() {
+    const actuales = new Set(aprobadores.map((a) => a.correo));
+    const candidatos = usuarios.filter((u) => u.activo);
+    const m = openModal({
+      title: 'Aprobadores de solicitudes',
+      body: html`<div class="stack-sm">
+        <p class="small muted">Las personas seleccionadas reciben por correo todas las solicitudes y pueden aprobarlas o rechazarlas. Obtienen el rol Aprobador (si ya son Admin lo conservan); quien se quite de la lista y sea Aprobador vuelve a Usuario.</p>
+        <input class="input" id="ap-filter" placeholder="Buscar persona…" style="min-height:38px" aria-label="Buscar aprobador" />
+        <div class="backup-list" id="ap-list" style="max-height:340px">
+          ${candidatos.map(
+            (u) => html`<label class="backup-opt" data-name="${u.nombre_completo.toLowerCase()} ${u.correo}">
+              <input type="checkbox" value="${u.correo}" ${actuales.has(u.correo) ? 'checked' : ''} />
+              <span class="avatar sm">${initials(u.nombre_completo)}</span>
+              <span class="grow"><b class="small">${u.nombre_completo}</b><br /><span class="xs muted">${u.rol}${u.torre ? ` · ${u.torre}` : ''}</span></span>
+            </label>`,
+          )}
+        </div>
+      </div>`,
+      footer: html`<button class="btn secondary" data-close>Cancelar</button><button class="btn" data-save>${icon('check')}Guardar</button>`,
+    });
+    $('#ap-filter', m.el).addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      m.el.querySelectorAll('#ap-list [data-name]').forEach((l) => l.classList.toggle('hidden', !l.dataset.name.includes(q)));
+    });
+    m.el.querySelector('[data-save]').addEventListener('click', async (e) => {
+      const list = [...m.el.querySelectorAll('#ap-list input:checked')].map((x) => x.value);
+      setBusy(e.currentTarget, true, 'Guardando…');
+      try {
+        await put('/admin/aprobadores', { aprobadores: list });
+        m.close();
+        toast('Aprobadores actualizados', 'ok');
+        reload();
+      } catch (err) {
+        toast(err.message, 'bad');
+        setBusy(e.currentTarget, false);
+      }
+    });
+  }
+
   async function remove(u) {
     const ok = await confirmDialog({
       title: 'Eliminar usuario',
@@ -150,7 +186,7 @@ export default async function adminUsuarios(el) {
       el,
       html`
       <div class="page-head">
-        <div><h1>Usuarios</h1><p>Altas, roles, torres, aprobadores y acceso de cada colaborador.</p></div>
+        <div><h1>Usuarios</h1><p>Altas, roles, torres, acceso de cada colaborador y quién aprueba las solicitudes.</p></div>
         <button class="btn" data-new>${icon('plus')}Nuevo usuario</button>
       </div>
       <div class="stack">
@@ -160,6 +196,18 @@ export default async function adminUsuarios(el) {
           <div class="card kpi"><div class="kpi-label">${icon('alert')}Perfil incompleto</div><div class="kpi-value" style="color:var(--warn)">${incompletos.length}</div><div class="kpi-foot">Se les pedirá completarlo al entrar</div></div>
           <div class="card kpi"><div class="kpi-label">${icon('key')}Sin contraseña</div><div class="kpi-value">${sinPass.length}</div><div class="kpi-foot">Deben activar su cuenta</div></div>
         </div>
+        <section class="card">
+          <div class="card-head">
+            <h2>${icon('check-square')}Aprobadores de solicitudes</h2>
+            <button class="btn secondary sm" data-approvers>${icon('edit')}Definir aprobadores</button>
+          </div>
+          <p class="small muted" style="margin-bottom:10px">Reciben y pueden aprobar las solicitudes de todos los colaboradores. Si no defines ninguno, las solicitudes llegan a los administradores. Quién solo recibe aviso de las aprobaciones se define en <a href="#/admin/torres">Torres de servicio</a>.</p>
+          <div class="row" style="gap:8px">
+            ${aprobadores.length
+              ? aprobadores.map((a) => html`<span class="tag" style="padding:6px 10px"><span class="avatar sm" style="width:22px;height:22px;font-size:.6rem">${initials(a.nombre)}</span>${a.nombre}</span>`)
+              : html`<span class="badge Pendiente plain">Sin aprobadores: llegan a los administradores</span>`}
+          </div>
+        </section>
         <div id="tbl"></div>
       </div>`,
     );
@@ -176,7 +224,6 @@ export default async function adminUsuarios(el) {
         { key: 'nombre_completo', label: 'Colaborador', render: (u) => html`<div class="row" style="gap:10px;flex-wrap:nowrap"><span class="avatar sm">${initials(u.nombre_completo)}</span><div><b>${u.nombre_completo}</b>${u.activo ? '' : html` <span class="badge plain">Inactivo</span>`}<div class="xs muted">${u.correo}</div></div></div>` },
         { key: 'rol', label: 'Rol', render: (u) => html`<span class="tag">${u.rol}</span>` },
         { key: 'torre', label: 'Torre', value: (u) => u.torre || '—' },
-        { key: 'aprobadores', label: 'Aprueba(n)', value: (u) => u.aprobadores.join(', '), render: (u) => html`<span class="small">${u.aprobador_correo ? html`<span class="tag">Excepción</span> ` : ''}${u.aprobadores.join(', ') || '—'}</span>` },
         { key: 'fecha_ingreso', label: 'Ingreso', render: (u) => (u.fecha_ingreso ? fmtDate(u.fecha_ingreso) : '—'), value: (u) => u.fecha_ingreso || '' },
         { key: 'perfil', label: 'Perfil', value: (u) => (u.perfil_incompleto.length ? 'Incompleto' : 'Completo'), render: (u) => (u.perfil_incompleto.length ? html`<span class="badge Pendiente" title="Falta: ${u.perfil_incompleto.map((p) => p.label).join(', ')}">Falta ${u.perfil_incompleto.length}</span>` : html`<span class="badge Aprobado">Completo</span>`) },
         { key: 'acceso', label: 'Acceso', value: (u) => (u.tiene_password ? 'Activo' : 'Sin contraseña'), render: (u) => (u.debe_cambiar_password ? html`<span class="badge Pendiente plain">Cambio forzado</span>` : u.tiene_password ? html`<span class="xs muted">${u.ultimo_acceso ? fmtDateTime(u.ultimo_acceso) : 'Nunca ha entrado'}</span>` : html`<span class="badge plain">Sin contraseña</span>`) },
@@ -197,6 +244,7 @@ export default async function adminUsuarios(el) {
 
   const find = (c) => usuarios.find((u) => u.correo === c);
   on(el, 'click', '[data-new]', () => userForm());
+  on(el, 'click', '[data-approvers]', approversForm);
   on(el, 'click', '[data-edit]', (e, b) => userForm(find(b.dataset.edit)));
   on(el, 'click', '[data-pass]', (e, b) => passwordMenu(find(b.dataset.pass)));
   on(el, 'click', '[data-del]', (e, b) => remove(find(b.dataset.del)));

@@ -18,7 +18,7 @@ export default async function calendario(el, { query }) {
   function dayInfo(f) {
     const mine = state.mias.find((s) => ['Pendiente', 'Aprobado'].includes(s.estatus) && (s.fechas || []).includes(f));
     const fuera = (state.team?.ausencias || []).filter((a) => a.fechas.includes(f) && a.correo !== session.user.correo);
-    const cubro = (state.team?.ausencias || []).filter((a) => a.fechas.includes(f) && a.backup_correo === session.user.correo);
+    const cubro = (state.team?.ausencias || []).filter((a) => a.fechas.includes(f) && (a.backup_correos || []).includes(session.user.correo));
     return { mine, fuera, cubro, fest: cat.festivosMap[f] };
   }
 
@@ -65,7 +65,7 @@ export default async function calendario(el, { query }) {
                 fmtDate(f, { weekday: true }),
                 fest ? `Festivo: ${fest.nombre}` : '',
                 mine ? `${b?.nombre} (${mine.estatus})` : '',
-                cubro.length ? `Cubres a ${cubro.map((c) => c.backup_correo && state.team.miembros.find((m) => m.correo === c.correo)?.nombre).join(', ')}` : '',
+                cubro.length ? `Cubres a ${cubro.map((c) => state.team.miembros.find((m) => m.correo === c.correo)?.nombre).join(', ')}` : '',
                 fuera.length ? `${fuera.length} del equipo fuera` : '',
               ]
                 .filter(Boolean)
@@ -76,7 +76,7 @@ export default async function calendario(el, { query }) {
                 aria-disabled="${disabled ? 'true' : 'false'}" aria-label="${label}" title="${label}">
                 <span class="n">${Number(f.slice(8))}</span>
                 ${fest ? html`<span class="h-name">${fest.nombre}</span>` : ''}
-                ${mine ? html`<span class="chip-tipo">${b?.abreviatura || ''} · ${mine.estatus === 'Pendiente' ? 'Pendiente' : 'Aprobado'}</span>` : ''}
+                ${mine ? html`<span class="chip-tipo">${b?.nombre}</span>` : ''}
                 ${cubro.length ? html`<span class="cover" title="Eres backup este día">${icon('life-buoy')}</span>` : ''}
                 ${state.verEquipo && fuera.length && !isWeekend(f) ? html`<span class="team">${icon('users')}${fuera.length}<span> fuera</span></span>` : ''}
               </button>`;

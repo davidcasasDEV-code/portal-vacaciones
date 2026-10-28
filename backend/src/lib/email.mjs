@@ -96,7 +96,7 @@ function detalle(s, extra = []) {
   ];
 }
 
-export async function notifyCreated(s, { aprobadores, backupEmail }) {
+export async function notifyCreated(s, { aprobadores, backupEmails = [] }) {
   const cfg = await getConfig();
   const link = `${cfg.app_url}#/aprobaciones?id=${encodeURIComponent(s.id)}`;
   await Promise.all([
@@ -118,9 +118,9 @@ export async function notifyCreated(s, { aprobadores, backupEmail }) {
       filas: detalle(s),
       cta: { label: 'Revisar solicitud', url: link },
     }),
-    backupEmail && cfg.notificar_backup !== 'no'
+    backupEmails.length && cfg.notificar_backup !== 'no'
       ? sendEmail({
-          to: backupEmail,
+          to: backupEmails,
           subject: `Te asignaron como backup de ${s.solicitante}`,
           titulo: 'Fuiste asignado como backup',
           estatus: s.estatus,
@@ -132,7 +132,7 @@ export async function notifyCreated(s, { aprobadores, backupEmail }) {
   ]);
 }
 
-export async function notifyDecision(s, { decididoPor, backupEmail }) {
+export async function notifyDecision(s, { decididoPor, backupEmails = [], notificarEmails = [] }) {
   const cfg = await getConfig();
   const aprobado = s.estatus === 'Aprobado';
   await Promise.all([
@@ -147,9 +147,9 @@ export async function notifyDecision(s, { decididoPor, backupEmail }) {
       filas: detalle(s, [['Decidió', decididoPor], ['Comentario del aprobador', s.comentario_aprobador]]),
       cta: { label: 'Ver mis solicitudes', url: `${cfg.app_url}#/solicitudes` },
     }),
-    aprobado && backupEmail && cfg.notificar_backup !== 'no'
+    aprobado && backupEmails.length && cfg.notificar_backup !== 'no'
       ? sendEmail({
-          to: backupEmail,
+          to: backupEmails,
           subject: `Confirmado: cubrirás a ${s.solicitante}`,
           titulo: 'Ausencia confirmada',
           estatus: s.estatus,
@@ -158,13 +158,24 @@ export async function notifyDecision(s, { decididoPor, backupEmail }) {
           cta: { label: 'Ir al portal', url: cfg.app_url },
         })
       : null,
+    aprobado && notificarEmails.length
+      ? sendEmail({
+          to: notificarEmails,
+          subject: `Ausencia aprobada: ${s.solicitante} · ${fmtDate(s.desde)} – ${fmtDate(s.hasta)}`,
+          titulo: 'Ausencia aprobada en tu torre',
+          estatus: s.estatus,
+          intro: `Te informamos que ${esc(decididoPor)} aprobó la ausencia de <b>${esc(s.solicitante)}</b>.`,
+          filas: detalle(s),
+          cta: { label: 'Ver mapa del equipo', url: `${cfg.app_url}#/equipo` },
+        })
+      : null,
   ]);
 }
 
-export async function notifyCancelled(s, { canceladoPor, aprobadores, backupEmail }) {
+export async function notifyCancelled(s, { canceladoPor, aprobadores, backupEmails = [] }) {
   const cfg = await getConfig();
   await sendEmail({
-    to: [s.correo_solicitante, ...aprobadores, backupEmail].filter(Boolean),
+    to: [s.correo_solicitante, ...aprobadores, ...backupEmails].filter(Boolean),
     subject: `Solicitud ${s.folio} cancelada · ${s.solicitante}`,
     titulo: 'Solicitud cancelada',
     estatus: 'Cancelado',

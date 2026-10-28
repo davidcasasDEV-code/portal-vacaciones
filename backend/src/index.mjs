@@ -43,6 +43,8 @@ const routes = [
   ['PUT', '/admin/usuarios/:correo', admin.updateUser, ADMIN],
   ['DELETE', '/admin/usuarios/:correo', admin.deleteUser, ADMIN],
   ['POST', '/admin/usuarios/:correo/password', admin.resetPassword, ADMIN],
+  ['GET', '/admin/aprobadores', admin.getApprovers, ADMIN],
+  ['PUT', '/admin/aprobadores', admin.updateApprovers, ADMIN],
   ['GET', '/admin/torres', admin.listTorres, ADMIN],
   ['POST', '/admin/torres', admin.createTorre, ADMIN],
   ['PUT', '/admin/torres/:id', admin.updateTorre, ADMIN],

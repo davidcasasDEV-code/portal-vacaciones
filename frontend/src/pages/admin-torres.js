@@ -14,7 +14,7 @@ export default async function adminTorres(el) {
 
   function form(t) {
     const isNew = !t;
-    t ||= { nombre: '', descripcion: '', color: '#1B4F8C', aprobadores: [] };
+    t ||= { nombre: '', descripcion: '', color: '#1B4F8C', notificar: [] };
     const candidatos = usuarios.filter((u) => u.activo).sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'));
     const m = openModal({
       title: isNew ? 'Nueva torre de servicio' : `Editar · ${t.nombre}`,
@@ -25,13 +25,13 @@ export default async function adminTorres(el) {
           <div class="field full"><label for="t-desc">Descripción</label><input class="input" id="t-desc" name="descripcion" value="${t.descripcion || ''}" /></div>
         </div>
         <div class="field">
-          <span class="label">Aprobadores de la torre</span>
-          <span class="hint">Las solicitudes de sus miembros llegarán a estas personas (cualquiera puede aprobar). Si alguien tiene rol Usuario se le asignará el rol Aprobador.</span>
-          <input class="input" id="t-filter" placeholder="Buscar persona…" style="min-height:38px" aria-label="Buscar aprobador" />
+          <span class="label">Notificar aprobaciones a</span>
+          <span class="hint">Estas personas reciben un correo cada vez que se aprueba una ausencia de alguien de la torre (no aprueban; quién aprueba se define en Usuarios).</span>
+          <input class="input" id="t-filter" placeholder="Buscar persona…" style="min-height:38px" aria-label="Buscar persona a notificar" />
           <div class="backup-list" id="t-list" style="max-height:260px">
             ${candidatos.map(
               (u) => html`<label class="backup-opt" data-name="${u.nombre_completo.toLowerCase()} ${u.correo}">
-                <input type="checkbox" name="aprobadores" value="${u.correo}" ${(t.aprobadores || []).includes(u.correo) ? 'checked' : ''} />
+                <input type="checkbox" name="notificar" value="${u.correo}" ${(t.notificar || []).includes(u.correo) ? 'checked' : ''} />
                 <span class="avatar sm">${initials(u.nombre_completo)}</span>
                 <span class="grow"><b class="small">${u.nombre_completo}</b><br /><span class="xs muted">${u.rol}${u.torre ? ` · ${u.torre}` : ''}</span></span>
               </label>`,
@@ -51,7 +51,7 @@ export default async function adminTorres(el) {
         nombre: f.nombre.value,
         color: f.color.value,
         descripcion: f.descripcion.value,
-        aprobadores: [...f.querySelectorAll('input[name=aprobadores]:checked')].map((x) => x.value),
+        notificar: [...f.querySelectorAll('input[name=notificar]:checked')].map((x) => x.value),
       };
       setBusy(e.currentTarget, true, 'Guardando…');
       try {
@@ -71,7 +71,7 @@ export default async function adminTorres(el) {
   async function remove(t) {
     const ok = await confirmDialog({
       title: `Eliminar ${t.nombre}`,
-      message: `${t.miembros} colaborador(es) quedarán sin torre (sus solicitudes irán a los administradores hasta que les asignes otra). ¿Continuar?`,
+      message: `${t.miembros} colaborador(es) quedarán sin torre. ¿Continuar?`,
       confirmText: 'Eliminar torre',
       danger: true,
     });
@@ -91,12 +91,12 @@ export default async function adminTorres(el) {
       el,
       html`
       <div class="page-head">
-        <div><h1>Torres de servicio</h1><p>Agrupan a los colaboradores, definen quién aprueba sus solicitudes y entre quiénes se elige el backup.</p></div>
+        <div><h1>Torres de servicio</h1><p>Agrupan a los colaboradores, definen entre quiénes se elige el backup y a quién se avisa cuando se aprueba una ausencia.</p></div>
         <button class="btn" data-new>${icon('plus')}Nueva torre</button>
       </div>
       <div class="stack">
         ${sinTorre.length
-          ? html`<div class="alert warn">${icon('info')}<div><b>${sinTorre.length} colaborador(es) activos sin torre:</b> ${sinTorre.map((u) => u.nombre_completo).join(', ')}. Sus solicitudes llegan a los administradores. Asígnalos desde <a href="#/admin/usuarios">Usuarios</a>.</div></div>`
+          ? html`<div class="alert warn">${icon('info')}<div><b>${sinTorre.length} colaborador(es) activos sin torre:</b> ${sinTorre.map((u) => u.nombre_completo).join(', ')}. Pueden elegir como backup a cualquier persona. Asígnalos desde <a href="#/admin/usuarios">Usuarios</a>.</div></div>`
           : ''}
         ${torres.length
           ? html`<div class="grid cols-3">
@@ -104,11 +104,11 @@ export default async function adminTorres(el) {
               (t) => html`<article class="card stack-sm" style="border-top:5px solid ${t.color}">
                 <div class="row between"><h2>${t.nombre}</h2><span class="tag">${t.miembros} miembro(s)</span></div>
                 ${t.descripcion ? html`<p class="small muted">${t.descripcion}</p>` : ''}
-                <div class="xs muted" style="font-weight:700;margin-top:6px">APROBADORES</div>
+                <div class="xs muted" style="font-weight:700;margin-top:6px">SE NOTIFICA AL APROBARSE</div>
                 <div class="list">
-                  ${t.aprobadores_detalle.length
-                    ? t.aprobadores_detalle.map((a) => html`<div class="list-item" style="padding:6px 0"><span class="avatar sm">${initials(a.nombre)}</span><div class="grow small"><b>${a.nombre}</b><div class="xs muted">${a.correo}</div></div></div>`)
-                    : html`<div class="alert warn" style="padding:8px 10px">${icon('alert')}<div class="small">Sin aprobadores: las solicitudes irán a los administradores.</div></div>`}
+                  ${t.notificar_detalle.length
+                    ? t.notificar_detalle.map((a) => html`<div class="list-item" style="padding:6px 0"><span class="avatar sm">${initials(a.nombre)}</span><div class="grow small"><b>${a.nombre}</b><div class="xs muted">${a.correo}</div></div></div>`)
+                    : html`<div class="xs muted">Nadie; solo se avisa al colaborador y a sus backups.</div>`}
                 </div>
                 <div class="row" style="justify-content:flex-end;margin-top:auto">
                   <a class="btn ghost sm" href="#/equipo?torre=${t.id}">${icon('users')}Mapa</a>

@@ -2,16 +2,16 @@
 // formulario (en vivo) y la validación definitiva al guardar.
 import { workingDays, eachDay, isWeekend } from './dates.mjs';
 import { computeBalance, consumption, balanceKeyFor, applicableBenefits, ACTIVE_STATUSES } from './balance.mjs';
-import { indexBy, fullName, resolveApprovers } from './repo.mjs';
+import { indexBy, fullName, resolveApprovers, backupsOf } from './repo.mjs';
 import { isISODate } from './http.mjs';
 import { fmtDate } from './email.mjs';
 
 const intersects = (a, bSet) => a.some((d) => bSet.has(d));
 
-export async function analyzeRequest({ user, tipo, desde, hasta, backup_correo, ignoreId }, repo, hoy) {
+export async function analyzeRequest({ user, tipo, desde, hasta, backups = [], ignoreId }, repo, hoy) {
   const errores = [];
   const advertencias = [];
-  const [beneficios, holidays, festivos, usuarios, torres, todas, adicionales] = await Promise.all([
+  const [beneficios, holidays, festivos, usuarios, torres, todas, adicionales, aprobadoresCfg] = await Promise.all([
     repo.beneficios(),
     repo.holidaySet(),
     repo.festivos(),
@@ -19,6 +19,7 @@ export async function analyzeRequest({ user, tipo, desde, hasta, backup_correo, 
     repo.torres(),
     repo.solicitudes(),
     repo.adicionales(),
+    repo.aprobadores(),
   ]);
   const torresById = indexBy(torres, 'id');
   const usersByEmail = indexBy(usuarios, 'correo');
@@ -34,9 +35,9 @@ export async function analyzeRequest({ user, tipo, desde, hasta, backup_correo, 
     dias_descuento: 0,
     saldo: null,
     saldo_despues: null,
-    aprobadores: resolveApprovers(user, usuarios, torresById),
+    aprobadores: resolveApprovers(user, usuarios, aprobadoresCfg),
     backups: [],
-    requiere_backup: Boolean(beneficio?.requiere_backup),
+    requiere_backup: true,
     companeros_fuera: [],
     errores,
     advertencias,
@@ -86,7 +87,7 @@ export async function analyzeRequest({ user, tipo, desde, hasta, backup_correo, 
   }
 
   // 2) El solicitante es backup de alguien en esas fechas: debe cubrir primero
-  const cubre = activas.filter((s) => s.backup_correo === user.correo && intersects(s.fechas || [], fechasSet));
+  const cubre = activas.filter((s) => backupsOf(s).includes(user.correo) && intersects(s.fechas || [], fechasSet));
   for (const s of cubre) {
     errores.push(`Eres backup de ${s.solicitante} del ${fmtDate(s.desde)} al ${fmtDate(s.hasta)}; no puedes ausentarte esos días`);
   }
@@ -123,13 +124,13 @@ export async function analyzeRequest({ user, tipo, desde, hasta, backup_correo, 
     })
     .sort((a, b) => Number(b.disponible) - Number(a.disponible) || a.nombre.localeCompare(b.nombre, 'es'));
 
-  if (backup_correo) {
-    const b = out.backups.find((x) => x.correo === backup_correo);
-    if (!b) errores.push('El backup seleccionado no pertenece a tu torre de servicio');
+  // Siempre se requiere al menos un backup disponible.
+  for (const correo of backups) {
+    const b = out.backups.find((x) => x.correo === correo);
+    if (!b) errores.push('Uno de los backups seleccionados no pertenece a tu torre de servicio');
     else if (!b.disponible) errores.push(`${b.nombre} no está disponible: ${b.motivo.toLowerCase()}`);
-  } else if (beneficio.requiere_backup && fechas.length) {
-    errores.push('Selecciona a la persona que te cubrirá (backup)');
   }
+  if (!backups.length && fechas.length) errores.push('Selecciona al menos una persona que te cubra (backup)');
 
   // 5) Contexto: compañeros de la misma torre fuera esos días
   if (user.torre_id) {

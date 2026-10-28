@@ -94,7 +94,7 @@ async function render() {
   if (!route.public && !route.bare) {
     target = renderShell(app);
     setActiveNav(path);
-    setTitle(route.title);
+    setTitle(path, route.title);
   }
   // Contenedor nuevo por navegación: los listeners delegados de la página anterior se descartan.
   const pageEl = document.createElement('div');

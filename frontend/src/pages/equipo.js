@@ -10,7 +10,7 @@ export default async function equipo(el, { query }) {
   const state = {
     mes: /^\d{4}-\d{2}$/.test(query.mes || '') ? query.mes : cat.hoy.slice(0, 7),
     torre: query.torre ?? (session.user.torre_id || ''),
-    soloAusentes: false,
+    soloAusentes: true,
     data: null,
   };
 
@@ -35,12 +35,6 @@ export default async function equipo(el, { query }) {
     const groups = {};
     for (const m of miembros) (groups[m.torre || 'Sin torre'] ||= []).push(m);
 
-    const heat = (n) => {
-      if (!n) return '';
-      const p = n / total;
-      const c = p >= 0.4 ? 'var(--bad)' : p >= 0.25 ? 'var(--warn)' : 'var(--accent)';
-      return `background:color-mix(in srgb, ${c} ${Math.min(90, 25 + p * 120)}%, transparent);`;
-    };
 
     mount(
       el,
@@ -99,9 +93,6 @@ export default async function equipo(el, { query }) {
                   )}`,
                 )}
               </tbody>
-              <tfoot><tr><th class="name" scope="row">Fuera por día</th>
-                ${days.map((f) => html`<td class="${isWeekend(f) ? 'we' : ''}">${isWeekend(f) || cat.festivosMap[f] ? '' : html`<span class="heat" style="${heat(fueraDia[f])}" title="${fueraDia[f]} de ${total} fuera">${fueraDia[f] || ''}</span>`}</td>`)}
-              </tr></tfoot>
             </table>`
               : emptyState('No hay colaboradores para mostrar', 'users')}
           </div>

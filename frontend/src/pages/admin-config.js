@@ -25,11 +25,11 @@ export default async function adminConfig(el) {
         <div class="card-head"><h2>${icon('info')}Flujo de notificaciones</h2></div>
         <div class="timeline">
           <div><b class="small">Al solicitar</b><div class="small muted">Correo al colaborador con el detalle, a su(s) aprobador(es) con enlace directo para decidir y a su backup.</div></div>
-          <div><b class="small">Al aprobar o rechazar</b><div class="small muted">Correo al colaborador con el nuevo estatus y comentario; si se aprueba, también a su backup.</div></div>
+          <div><b class="small">Al aprobar o rechazar</b><div class="small muted">Correo al colaborador con el nuevo estatus y comentario; si se aprueba, también a sus backups y a quienes se notifica en su torre.</div></div>
           <div><b class="small">Al cancelar</b><div class="small muted">Correo al colaborador, aprobadores y backup.</div></div>
           <div><b class="small">Acceso</b><div class="small muted">Códigos de verificación (15 min) y contraseñas temporales.</div></div>
         </div>
-        <div class="alert">${icon('building')}<div>¿A quién llegan las solicitudes? Se configura en <a href="#/admin/torres">Torres de servicio</a> (aprobadores por torre) o en <a href="#/admin/usuarios">Usuarios</a> (excepción por persona).</div></div>
+        <div class="alert">${icon('building')}<div>¿Quién aprueba? Se define en <a href="#/admin/usuarios">Usuarios → Aprobadores de solicitudes</a> (aplica a todos). En <a href="#/admin/torres">Torres de servicio</a> eliges a quién solo se le avisa cuando se aprueba una ausencia de esa torre.</div></div>
       </section>
     </div>`,
   );

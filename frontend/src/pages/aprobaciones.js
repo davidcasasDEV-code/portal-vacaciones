@@ -110,7 +110,7 @@ export default async function aprobaciones(el, { query }) {
           { key: 'desde', label: 'Fechas', render: (s) => html`<span class="nowrap">${fmtRange(s.desde, s.hasta)}</span>` },
           { key: 'dias', label: 'Días', num: true, value: (s) => s.fechas?.length || 0 },
           { key: 'estatus', label: 'Estatus', render: (s) => statusBadge(s.estatus) },
-          { key: 'aprobado_por_nombre', label: 'Decidió', value: (s) => s.aprobado_por_nombre || '—' },
+          { key: 'aprobado_por_nombre', label: 'Aprobó', value: (s) => s.aprobado_por_nombre || '—' },
         ],
       });
     }

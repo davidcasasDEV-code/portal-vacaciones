@@ -105,7 +105,7 @@ export default async function inicio(el) {
         <div class="card kpi">
           <div class="kpi-label">${icon('clock')} Mis solicitudes pendientes</div>
           <div class="kpi-value">${pendientesMias}</div>
-          <div class="kpi-foot">Aprobador: ${d.mi_aprobador || '—'}</div>
+          <div class="kpi-foot" style="overflow-wrap:anywhere">${d.aprobadores.length ? html`Te aprueba${d.aprobadores.length > 1 ? 'n' : ''}: <b>${d.aprobadores.slice(0, 2).join(', ')}</b>${d.aprobadores.length > 2 ? ` y ${d.aprobadores.length - 2} más` : ''}` : 'Sin aprobador asignado'}</div>
           <a class="small" href="#/solicitudes">Ver historial →</a>
         </div>
       </div>

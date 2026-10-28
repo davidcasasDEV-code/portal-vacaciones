@@ -31,6 +31,16 @@ export default async function saldos(el) {
       <a class="btn" href="#/calendario">${icon('calendar-plus')}Solicitar días</a>
     </div>
     <div class="stack">
+      <section class="card flush">
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Beneficio</th><th class="num">Otorgado</th><th class="num">Usado</th><th class="num">Agendado</th><th class="num">Pendiente</th><th class="num">Disponible</th></tr></thead>
+          <tbody>${d.saldos.map(
+            (s) => html`<tr><td><span class="row" style="gap:8px"><span class="dot" style="background:${s.color}"></span>${s.nombre}</span></td>
+              <td class="num">${s.ilimitado ? '—' : num(s.otorgado + s.adicional)}</td><td class="num">${num(s.usado)}</td>
+              <td class="num">${num(s.agendado)}</td><td class="num">${num(s.pendiente)}</td><td class="num"><b>${s.ilimitado ? '∞' : num(s.disponible)}</b></td></tr>`,
+          )}</tbody>
+        </table></div>
+      </section>
       ${v
         ? html`<section class="card">
           <div class="grid cols-2" style="align-items:center">
@@ -112,17 +122,6 @@ export default async function saldos(el) {
             : emptyState('No tienes ajustes de saldo', 'sliders')}
         </section>
       </div>
-
-      <section class="card flush">
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>Beneficio</th><th class="num">Otorgado</th><th class="num">Ajustes</th><th class="num">Usado</th><th class="num">Agendado</th><th class="num">Pendiente</th><th class="num">Disponible</th></tr></thead>
-          <tbody>${d.saldos.map(
-            (s) => html`<tr><td><span class="row" style="gap:8px"><span class="dot" style="background:${s.color}"></span>${s.nombre}</span></td>
-              <td class="num">${s.ilimitado ? '—' : num(s.otorgado)}</td><td class="num">${num(s.adicional)}</td><td class="num">${num(s.usado)}</td>
-              <td class="num">${num(s.agendado)}</td><td class="num">${num(s.pendiente)}</td><td class="num"><b>${s.ilimitado ? '∞' : num(s.disponible)}</b></td></tr>`,
-          )}</tbody>
-        </table></div>
-      </section>
     </div>`,
   );
 

@@ -41,7 +41,6 @@ export default async function adminBeneficios(el, { query }) {
             : ''}
           <div class="field"><label for="b-gen">Aplica a</label><select class="input" id="b-gen" name="genero">${['Todos', 'Hombre', 'Mujer'].map((g) => html`<option ${b.genero === g ? 'selected' : ''}>${g}</option>`)}</select></div>
           <div class="stack-sm full">
-            <label class="check"><input type="checkbox" name="requiere_backup" ${yes(b.requiere_backup)} /> Requiere backup obligatorio</label>
             <label class="check"><input type="checkbox" name="permite_retroactivo" ${yes(b.permite_retroactivo)} /> Permite registrar fechas pasadas</label>
             <label class="check"><input type="checkbox" name="activo" ${yes(b.activo !== false)} /> Activo (aparece al solicitar)</label>
           </div>
@@ -53,7 +52,7 @@ export default async function adminBeneficios(el, { query }) {
       const form = $('#bf', m.el);
       const f = formData(form);
       const body = { ...f };
-      for (const k of ['requiere_backup', 'permite_retroactivo', 'activo', 'acumulable']) if (form[k]) body[k] = form[k].checked;
+      for (const k of ['permite_retroactivo', 'activo', 'acumulable']) if (form[k]) body[k] = form[k].checked;
       setBusy(e.currentTarget, true, 'Guardando…');
       try {
         await put(`/admin/beneficios/${b.clave}`, body);
@@ -119,7 +118,6 @@ export default async function adminBeneficios(el, { query }) {
                     <span class="tag">${b.descuenta_de ? `Descuenta ${num(b.factor)} de ${cat.beneficiosMap[b.descuenta_de]?.nombre}` : PERIODO[b.periodo]}</span>
                     ${b.periodo !== 'ilimitado' && !b.descuenta_de ? html`<span class="tag">${b.dias} días${b.periodo === 'lft' ? ' (año 1)' : '/año'}</span>` : ''}
                     ${b.genero && b.genero !== 'Todos' ? html`<span class="tag">Solo ${b.genero.toLowerCase()}s</span>` : ''}
-                    ${b.requiere_backup ? html`<span class="tag">${icon('life-buoy')}Backup</span>` : ''}
                     ${b.permite_retroactivo ? html`<span class="tag">Retroactivo</span>` : ''}
                     ${b.periodo === 'lft' ? html`<span class="tag">${b.acumulable !== false ? 'Acumulable' : 'No acumulable'}</span>` : ''}
                   </div>
