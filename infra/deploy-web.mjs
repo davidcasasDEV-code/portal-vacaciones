@@ -19,9 +19,14 @@ import {
   CreateInvalidationCommand,
 } from '@aws-sdk/client-cloudfront';
 import { LambdaClient, GetFunctionUrlConfigCommand } from '@aws-sdk/client-lambda';
-import { S, ROOT, log, websiteEndpoint } from './settings.mjs';
+import { S, T, ROOT, log, websiteEndpoint } from './settings.mjs';
 import { ensureFunctionUrl } from './deploy-api.mjs';
 import { setConfig } from './seed-config.mjs';
+import { DynamoDBClient as DdbClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+
+const ddbDoc = DynamoDBDocumentClient.from(new DdbClient({}));
+const getConfigValue = async (clave) => (await ddbDoc.send(new GetCommand({ TableName: T.config, Key: { clave } }))).Item?.valor;
 
 const s3 = new S3Client({});
 const cf = new CloudFrontClient({ region: 'us-east-1' });
@@ -122,9 +127,11 @@ if (!dist) {
 }
 const httpsUrl = `https://${dist.DomainName}/`;
 
-// 6) CORS de la API y URL del portal para los correos
+// 6) CORS de la API y URL del portal para los correos.
+// La URL de los correos solo se fija si aún no existe; después la decide el Admin
+// en Configuración (por ahora se usa la liga http de S3).
 await ensureFunctionUrl([`https://${dist.DomainName}`]);
-await setConfig('app_url', httpsUrl);
+if (!(await getConfigValue('app_url'))) await setConfig('app_url', httpsUrl);
 
 log(`Portal (HTTPS):  ${httpsUrl}`);
 log(`Portal (S3):     http://${websiteEndpoint()}/`);
