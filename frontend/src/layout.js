@@ -28,10 +28,12 @@ function themeIcon() {
 }
 
 export function renderShell(app) {
-  const existing = $('#content', app);
-  if (existing && app.dataset.user === session.user?.correo) return existing;
+  // Se reconstruye si cambió algo visible del usuario (nombre, rol, torre, si aprueba).
   const u = session.user;
-  app.dataset.user = u?.correo || '';
+  const sig = JSON.stringify([u?.correo, u?.nombre_corto, u?.rol, u?.torre, session.esAprobador]);
+  const existing = $('#content', app);
+  if (existing && app.dataset.sig === sig) return existing;
+  app.dataset.sig = sig;
   const mobileFifth = session.isApprover ? { href: '/aprobaciones', label: 'Aprobar', icon: 'check-square' } : { href: '/saldos', label: 'Saldos', icon: 'wallet' };
 
   mount(

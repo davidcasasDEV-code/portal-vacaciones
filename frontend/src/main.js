@@ -39,13 +39,38 @@ export const navigate = (to) => {
   else location.hash = to;
 };
 
-export async function loadCatalogos(force = false) {
-  if (session.catalogos && !force) return session.catalogos;
-  const c = await get('/catalogos');
-  c.beneficiosMap = Object.fromEntries(c.beneficios.map((b) => [b.clave, b]));
-  c.festivosMap = Object.fromEntries(c.festivos.map((f) => [f.fecha, f]));
-  session.catalogos = c;
-  return c;
+// Catálogos (torres, festivos, beneficios): se piden de nuevo en cada navegación para
+// que los cambios del Admin se vean sin refrescar; dentro de una misma vista se reutilizan.
+let catalogosPromise = null;
+export function loadCatalogos(force = false) {
+  if (catalogosPromise && !force) return catalogosPromise;
+  catalogosPromise = get('/catalogos')
+    .then((c) => {
+      c.beneficiosMap = Object.fromEntries(c.beneficios.map((b) => [b.clave, b]));
+      c.festivosMap = Object.fromEntries(c.festivos.map((f) => [f.fecha, f]));
+      session.catalogos = c;
+      return c;
+    })
+    .catch((e) => {
+      catalogosPromise = null;
+      throw e;
+    });
+  return catalogosPromise;
+}
+
+// Si se publicó una versión nueva del portal, se recarga al navegar (máx. 1 revisión por minuto).
+let lastVersionCheck = 0;
+async function checkNewVersion() {
+  if (Date.now() - lastVersionCheck < 60_000) return false;
+  lastVersionCheck = Date.now();
+  try {
+    const v = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null));
+    if (v?.build && v.build !== __BUILD_ID__) {
+      location.reload();
+      return true;
+    }
+  } catch {}
+  return false;
 }
 
 async function bootSession() {
@@ -64,9 +89,14 @@ async function render() {
   if (!route.public && !session.token) return navigate('/login');
   if (route.public && session.token && path === '/login') return navigate('/');
 
-  if (!route.public && !booted) {
+  if (await checkNewVersion()) return;
+
+  // En cada navegación se vuelven a leer el usuario (rol, torre, aprobadores) y los catálogos,
+  // así los cambios hechos por un Admin se reflejan sin refrescar la pantalla.
+  if (!route.public) {
     try {
-      mount(app, html`<div class="auth-panel" style="min-height:100dvh"><div class="skeleton" style="width:220px;height:22px"></div></div>`);
+      if (!booted) mount(app, html`<div class="auth-panel" style="min-height:100dvh"><div class="skeleton" style="width:220px;height:22px"></div></div>`);
+      loadCatalogos(true).catch(() => {});
       await bootSession();
     } catch (e) {
       if (e.status !== 401) toast(e.message, 'bad');
@@ -120,6 +150,14 @@ export function resetBoot() {
 
 // Toda tabla con desplazamiento horizontal recibe también una barra arriba.
 new MutationObserver(() => app.querySelectorAll('.table-wrap, .map-wrap').forEach(topScrollbar)).observe(app, { childList: true, subtree: true });
+
+// Al volver a la pestaña tras más de un minuto, se recargan los datos de la vista actual
+// (salvo que haya un formulario abierto, para no perder lo capturado).
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 60_000 && session.token && !document.querySelector('.modal-backdrop')) render();
+});
 
 window.addEventListener('hashchange', render);
 render();

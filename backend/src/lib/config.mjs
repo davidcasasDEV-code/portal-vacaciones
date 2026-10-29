@@ -26,7 +26,9 @@ let cache = null;
 let cacheAt = 0;
 
 export async function getConfig() {
-  if (cache && Date.now() - cacheAt < 60_000) return cache;
+  // Caché breve: solo evita releer la tabla varias veces dentro de la misma petición,
+  // para que los cambios del Admin (aprobadores, remitente, etc.) apliquen de inmediato.
+  if (cache && Date.now() - cacheAt < 2_000) return cache;
   const items = await scanAll(TABLES.config);
   const cfg = Object.fromEntries(items.map((i) => [i.clave, i.valor]));
   cfg.ses_from ||= process.env.SES_FROM;
