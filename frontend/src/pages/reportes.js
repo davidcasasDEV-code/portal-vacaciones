@@ -5,7 +5,8 @@ import { session } from '../state.js';
 import { loadCatalogos } from '../main.js';
 import { fmtRange, fmtDate, statusBadge, tipoChip, num, MESES_C } from '../ui/format.js';
 import { dataTable } from '../ui/table.js';
-import { stackedBar, doughnut, PALETTE } from '../ui/charts.js';
+import { stackedBar, doughnut } from '../ui/charts.js';
+import { balance, tone, series } from '../ui/palette.js';
 import { openRequestDetail } from '../ui/request-detail.js';
 
 export default async function reportes(el, { query }) {
@@ -58,11 +59,11 @@ export default async function reportes(el, { query }) {
     );
     const bm = cat.beneficiosMap;
     const tipos = Object.keys(r.por_tipo);
-    stackedBar($('#c-mes', el), MESES_C, tipos.map((t) => ({ label: bm[t]?.nombre || t, data: r.por_mes.map((m) => m[t] || 0), backgroundColor: bm[t]?.color })));
-    doughnut($('#c-tipo', el), tipos.map((t) => bm[t]?.nombre || t), tipos.map((t) => r.por_tipo[t]), tipos.map((t) => bm[t]?.color));
+    stackedBar($('#c-mes', el), MESES_C, tipos.map((t) => ({ label: bm[t]?.nombre || t, data: r.por_mes.map((m) => m[t] || 0), backgroundColor: tone(bm[t]?.color) })));
+    doughnut($('#c-tipo', el), tipos.map((t) => bm[t]?.nombre || t), tipos.map((t) => r.por_tipo[t]), tipos.map((t) => tone(bm[t]?.color)));
     const torres = Object.entries(r.por_torre);
-    stackedBar($('#c-torre', el), torres.map(([t]) => t), [{ label: 'Días', data: torres.map(([, v]) => v), backgroundColor: torres.map((_, i) => PALETTE[i % PALETTE.length]) }], { horizontal: true });
-    stackedBar($('#c-top', el), r.top_personas.map(([n]) => n.split(' ').slice(0, 2).join(' ')), [{ label: 'Días', data: r.top_personas.map(([, v]) => v), backgroundColor: '#5DADEC' }], { horizontal: true });
+    stackedBar($('#c-torre', el), torres.map(([t]) => t), [{ label: 'Días', data: torres.map(([, v]) => v), backgroundColor: series(0) }], { horizontal: true });
+    stackedBar($('#c-top', el), r.top_personas.map(([n]) => n.split(' ').slice(0, 2).join(' ')), [{ label: 'Días', data: r.top_personas.map(([, v]) => v), backgroundColor: series(0) }], { horizontal: true });
 
     dataTable($('#tbl', el), {
       rows: r.solicitudes,
@@ -113,14 +114,14 @@ export default async function reportes(el, { query }) {
       $('#c-saldos', el),
       sorted.map((f) => f.nombre.split(' ').slice(0, 2).join(' ')),
       [
-        { label: 'Usados', data: sorted.map((f) => f.saldos.vacaciones?.usado ?? 0), backgroundColor: '#A7A9AC' },
-        { label: 'Agendados / pendientes', data: sorted.map((f) => (f.saldos.vacaciones?.agendado ?? 0) + (f.saldos.vacaciones?.pendiente ?? 0)), backgroundColor: '#5DADEC' },
-        { label: 'Disponibles', data: sorted.map((f) => Math.max(0, f.saldos.vacaciones?.disponible ?? 0)), backgroundColor: '#1B4F8C' },
+        { label: 'Usados', data: sorted.map((f) => f.saldos.vacaciones?.usado ?? 0), backgroundColor: balance().usado },
+        { label: 'Por disfrutar', data: sorted.map((f) => (f.saldos.vacaciones?.agendado ?? 0) + (f.saldos.vacaciones?.pendiente ?? 0)), backgroundColor: balance().porDisfrutar },
+        { label: 'Disponibles', data: sorted.map((f) => Math.max(0, f.saldos.vacaciones?.disponible ?? 0)), backgroundColor: balance().disponible },
       ],
       { horizontal: true },
     );
     const cell = (s) => (s ? html`<div style="min-width:110px"><b>${num(s.disponible)}</b> <span class="xs muted">/ ${num(s.otorgado + s.adicional)}</span>
-      <div class="progress" style="height:5px;margin-top:3px"><span style="width:${Math.max(0, Math.min(100, (s.disponible / Math.max(1, s.otorgado + s.adicional)) * 100))}%;background:${s.color}"></span></div></div>` : '—');
+      <div class="progress" style="height:5px;margin-top:3px"><span style="width:${Math.max(0, Math.min(100, (s.disponible / Math.max(1, s.otorgado + s.adicional)) * 100))}%;background:${balance().disponible}"></span></div></div>` : '—');
     dataTable($('#tbl', el), {
       rows: d.filas,
       exportName: `saldos-${d.hoy}`,

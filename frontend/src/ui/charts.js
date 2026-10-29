@@ -45,7 +45,8 @@ export function chart(canvas, config) {
 export const stackedBar = (canvas, labels, datasets, { horizontal = false } = {}) =>
   chart(canvas, {
     type: 'bar',
-    data: { labels, datasets: datasets.map((d) => ({ borderRadius: 5, maxBarThickness: 34, ...d })) },
+    // Separación de 2px (color de la superficie) entre segmentos apilados
+    data: { labels, datasets: datasets.map((d) => ({ borderRadius: 4, maxBarThickness: 34, borderColor: css('--surface'), borderWidth: horizontal ? { right: 2 } : { top: 2 }, borderSkipped: false, ...d })) },
     options: {
       indexAxis: horizontal ? 'y' : 'x',
       plugins: { legend: { position: 'bottom' } },
@@ -63,4 +64,3 @@ export const doughnut = (canvas, labels, data, colors) =>
     options: { cutout: '64%', plugins: { legend: { position: 'right' } } },
   });
 
-export const PALETTE = ['#1B4F8C', '#5DADEC', '#2BA59B', '#E8A33D', '#7C5CD6', '#D6619E', '#E05A5A', '#6B7A8F', '#A7A9AC', '#4A4E69'];

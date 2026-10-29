@@ -4,6 +4,7 @@ import { get } from '../api.js';
 import { loadCatalogos } from '../main.js';
 import { fmtDate, fmtRange, num, plural, relDays, statusBadge, monthDays, monthLabel, dow, isWeekend, MESES_C, inkFor } from '../ui/format.js';
 import { openRequestModal } from '../ui/request-modal.js';
+import { balance, tone } from '../ui/palette.js';
 
 const saludo = () => {
   const h = new Date().getHours();
@@ -30,7 +31,7 @@ function miniCal(d, cat) {
       })}
     </div>
     <div class="legend mini-legend" style="margin-top:12px">
-      <span><span aria-hidden="true" class="sw" style="background:${cat.beneficiosMap.vacaciones?.color}"></span>Tus días</span>
+      <span><span aria-hidden="true" class="sw" style="background:${tone(cat.beneficiosMap.vacaciones?.color)}"></span>Tus días</span>
       <span><span aria-hidden="true" class="sw holiday"></span>Festivo</span>
       <span><span aria-hidden="true" class="sw today"></span>Hoy</span>
       <span><span aria-hidden="true" class="sw team"><span class="t">2</span></span>Personas del equipo fuera</span>
@@ -69,9 +70,10 @@ export default async function inicio(el) {
     const pU = (s.usado / base) * 100;
     const pA = pU + (porDisfrutar / base) * 100;
     const pD = pA + (Math.max(0, s.disponible) / base) * 100;
-    const cU = `color-mix(in srgb, ${s.color} 55%, var(--surface-3))`;
-    const cA = `color-mix(in srgb, ${s.color} 80%, var(--surface-3))`;
-    const gradient = `conic-gradient(${cU} 0 ${pU}%, ${cA} ${pU}% ${pA}%, ${s.color} ${pA}% ${pD}%, var(--surface-3) ${pD}% 100%)`;
+    const { usado: cU, porDisfrutar: cA, disponible: cD } = balance();
+    // 1.2% de separación entre segmentos para que se distinga cada uno
+    const gap = (a, b) => (b - a > 2 ? `${a}% ${b - 1.2}%, var(--surface) ${b - 1.2}% ${b}%` : `${a}% ${b}%`);
+    const gradient = `conic-gradient(${cU} ${gap(0, pU)}, ${cA} ${gap(pU, pA)}, ${cD} ${gap(pA, pD)}, var(--surface-3) ${pD}% 100%)`;
     return html`<div class="card balance-card">
       <div class="ring" style="background:${gradient}" role="img" aria-label="${label}: ${num(s.usado)} usados, ${num(porDisfrutar)} por disfrutar, ${num(s.disponible)} disponibles de ${num(total)}"><span>${num(s.disponible)}</span></div>
       <div class="meta">
@@ -81,7 +83,7 @@ export default async function inicio(el) {
           <span>Otorgados <b>${num(total)}</b></span>
           <span><i style="background:${cU}"></i>Usados <b>${num(s.usado)}</b></span>
           ${porDisfrutar ? html`<span><i style="background:${cA}"></i>Por disfrutar <b>${num(porDisfrutar)}</b></span>` : ''}
-          <span><i style="background:${s.color}"></i>Disponibles <b>${num(s.disponible)}</b></span>
+          <span><i style="background:${cD}"></i>Disponibles <b>${num(s.disponible)}</b></span>
         </div>
       </div>
     </div>`;

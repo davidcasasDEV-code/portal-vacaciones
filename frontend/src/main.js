@@ -159,5 +159,6 @@ document.addEventListener('visibilitychange', () => {
   else if (hiddenAt && Date.now() - hiddenAt > 60_000 && session.token && !document.querySelector('.modal-backdrop')) render();
 });
 
+window.addEventListener('themechange', () => document.querySelector('#content canvas, #content .ring') && render());
 window.addEventListener('hashchange', render);
 render();

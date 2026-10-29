@@ -5,6 +5,7 @@ import { loadCatalogos } from '../main.js';
 import { fmtDate, num, MESES_C } from '../ui/format.js';
 import { session } from '../state.js';
 import { stackedBar } from '../ui/charts.js';
+import { balance, tone } from '../ui/palette.js';
 
 export default async function saldos(el) {
   const [d, cat] = await Promise.all([get('/saldo'), loadCatalogos()]);
@@ -15,11 +16,12 @@ export default async function saldos(el) {
   const tramoActual = ant ? d.lft.find((t) => ant.anios + 1 >= t.desde && ant.anios + 1 <= t.hasta) : null;
   const diasAlAniv = info?.proximo ? Math.round((new Date(`${info.proximo.fecha}T00:00:00Z`) - new Date(`${d.hoy}T00:00:00Z`)) / 86400000) : null;
 
+  const C = balance();
   const bar = (s) => {
     const total = Math.max(s.otorgado + s.adicional, s.usado + s.agendado + s.pendiente, 1);
     const seg = (n, color, label) => (n > 0 ? html`<span style="width:${(n / total) * 100}%;background:${color}" title="${label}: ${num(n)}"></span>` : '');
     return html`<div class="progress" style="height:12px" role="img" aria-label="Usados ${num(s.usado)}, agendados ${num(s.agendado)}, pendientes ${num(s.pendiente)}, disponibles ${num(s.disponible)}">
-      ${seg(s.usado, 'var(--neutral)', 'Usados')}${seg(s.agendado, s.color, 'Agendados')}${seg(s.pendiente, 'var(--warn)', 'Pendientes')}${seg(Math.max(0, s.disponible), 'color-mix(in srgb, ' + s.color + ' 25%, transparent)', 'Disponibles')}
+      ${seg(s.usado, C.usado, 'Usados')}${seg(s.agendado + s.pendiente, C.porDisfrutar, 'Por disfrutar')}${seg(Math.max(0, s.disponible), C.disponible, 'Disponibles')}
     </div>`;
   };
 
@@ -46,13 +48,12 @@ export default async function saldos(el) {
           <div class="grid cols-2" style="align-items:center">
             <div class="stack-sm">
               <div class="kpi-label muted small" style="font-weight:700">${icon('umbrella')} VACACIONES DISPONIBLES</div>
-              <div style="font-size:3rem;font-weight:800;line-height:1;color:${v.color}">${num(v.disponible)} <span style="font-size:1rem;color:var(--muted)">días</span></div>
+              <div style="font-size:3rem;font-weight:800;line-height:1;color:${C.disponible}">${num(v.disponible)} <span style="font-size:1rem;color:var(--muted)">días</span></div>
               ${bar(v)}
               <div class="legend">
-                <span><span class="dot" style="background:var(--neutral)"></span>Usados ${num(v.usado)}</span>
-                <span><span class="dot" style="background:${v.color}"></span>Agendados ${num(v.agendado)}</span>
-                <span><span class="dot" style="background:var(--warn)"></span>Pendientes ${num(v.pendiente)}</span>
-                <span><span class="dot" style="background:color-mix(in srgb, ${v.color} 25%, transparent)"></span>Disponibles ${num(v.disponible)}</span>
+                <span><span class="dot" style="background:${C.usado}"></span>Usados ${num(v.usado)}</span>
+                <span><span class="dot" style="background:${C.porDisfrutar}"></span>Por disfrutar ${num(v.agendado + v.pendiente)}${v.pendiente ? ` (${num(v.pendiente)} pendientes)` : ''}</span>
+                <span><span class="dot" style="background:${C.disponible}"></span>Disponibles ${num(v.disponible)}</span>
               </div>
             </div>
             <div class="grid cols-2" style="gap:12px">
@@ -101,7 +102,7 @@ export default async function saldos(el) {
               <div class="row between"><b>${s.nombre}</b>${s.ilimitado ? html`<span class="tag">Sin límite</span>` : html`<span class="tag">${b?.periodo === 'anual' ? `Anual ${d.hoy.slice(0, 4)}` : ''}</span>`}</div>
               ${s.ilimitado
                 ? html`<div class="kpi-value" style="font-size:1.6rem">${num(s.usado + s.agendado + s.pendiente)} <small class="muted" style="font-size:.85rem">días registrados este año</small></div>`
-                : html`<div class="kpi-value" style="font-size:1.6rem;color:${s.color}">${num(s.disponible)} <small class="muted" style="font-size:.85rem">de ${num(s.otorgado + s.adicional)} disponibles</small></div>${bar(s)}`}
+                : html`<div class="kpi-value" style="font-size:1.6rem">${num(s.disponible)} <small class="muted" style="font-size:.85rem">de ${num(s.otorgado + s.adicional)} disponibles</small></div>${bar(s)}`}
               <p class="xs muted">${b?.descripcion || ''}</p>
             </div>`;
           })}
@@ -129,7 +130,7 @@ export default async function saldos(el) {
   stackedBar(
     $('#ch-mes', el),
     MESES_C,
-    tipos.map((t) => ({ label: cat.beneficiosMap[t]?.nombre || t, data: d.por_mes.map((m) => m.tipos[t] || 0), backgroundColor: cat.beneficiosMap[t]?.color })),
+    tipos.map((t) => ({ label: cat.beneficiosMap[t]?.nombre || t, data: d.por_mes.map((m) => m.tipos[t] || 0), backgroundColor: tone(cat.beneficiosMap[t]?.color) })),
   );
 }
 
